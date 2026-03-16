@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}ShopVerse{% endblock %} — Smart AI Shopping</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{% block extra_css %}{% endblock %}
+<style>
+/* ── VOICE MODAL ── */
+.voice-modal{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.92);backdrop-filter:blur(16px);align-items:center;justify-content:center;}
+.voice-modal.open{display:flex;}
+.voice-container{width:min(500px,94vw);background:var(--bg-card);border:1px solid var(--border-lg);border-radius:28px;overflow:hidden;}
+.voice-header{padding:22px 22px 0;text-align:center;}
+.voice-header h2{font-size:19px;font-weight:700;margin-bottom:4px;}
+.voice-header p{font-size:12px;color:var(--text-3);}
+/* Lang selector bar */
+.voice-lang-bar{display:flex;align-items:center;gap:10px;padding:12px 20px;background:var(--bg-card2);margin:14px 16px 0;border-radius:12px;border:1px solid var(--border);}
+.voice-lang-bar label{font-size:11px;font-weight:600;color:var(--text-3);white-space:nowrap;flex-shrink:0;}
+.voice-lang-bar select{flex:1;background:transparent;border:none;color:var(--text-1);font-size:12px;font-family:inherit;cursor:pointer;outline:none;}
+.voice-lang-bar select option{background:#0d1424;color:var(--text-1);}
+/* Orb */
+.voice-orb-wrap{display:flex;justify-content:center;padding:24px 0 16px;}
+.voice-orb{width:110px;height:110px;border-radius:50%;position:relative;background:radial-gradient(circle at 35% 35%,#818cf8,#6366f1 40%,#4f46e5);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 0 rgba(99,102,241,0.4);transition:all .3s ease;}
+.voice-orb.listening{animation:orbPulse 1.2s ease-in-out infinite;box-shadow:0 0 40px rgba(99,102,241,0.6);}
+.voice-orb.speaking{background:radial-gradient(circle at 35% 35%,#34d399,#10b981 40%,#059669);animation:orbSpeakPulse .6s ease-in-out infinite alternate;}
+.voice-orb.processing{background:radial-gradient(circle at 35% 35%,#fbbf24,#f59e0b 40%,#d97706);animation:orbRotate 1s linear infinite;}
+.voice-orb i{font-size:36px;color:white;z-index:1;}
+@keyframes orbPulse{0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,0.4);transform:scale(1);}50%{box-shadow:0 0 0 20px rgba(99,102,241,0),0 0 60px rgba(99,102,241,0.4);transform:scale(1.05);}}
+@keyframes orbSpeakPulse{from{transform:scale(.97);}to{transform:scale(1.05);}}
+@keyframes orbRotate{from{filter:hue-rotate(0deg);}to{filter:hue-rotate(360deg);}}
+/* Waves */
+.voice-waves{display:flex;align-items:center;justify-content:center;gap:4px;height:36px;margin-bottom:6px;}
+.voice-wave{width:4px;border-radius:2px;background:var(--accent);animation:waveAnim 1.2s ease-in-out infinite;}
+.voice-wave:nth-child(2){animation-delay:.1s;}.voice-wave:nth-child(3){animation-delay:.2s;}.voice-wave:nth-child(4){animation-delay:.3s;}.voice-wave:nth-child(5){animation-delay:.4s;}
+@keyframes waveAnim{0%,100%{height:8px;opacity:.4;}50%{height:28px;opacity:1;}}
+.voice-waves.silent .voice-wave{height:8px;opacity:.2;animation:none;}
+.voice-status{text-align:center;font-size:12px;color:var(--text-3);margin:8px 0 4px;}
+.voice-transcript{min-height:56px;padding:14px;background:var(--bg-card2);border-radius:12px;margin:0 18px;font-size:13px;color:var(--text-2);text-align:center;line-height:1.5;}
+.voice-history{max-height:140px;overflow-y:auto;padding:10px 18px;}
+.voice-history-item{padding:6px 10px;border-radius:6px;font-size:11px;margin-bottom:4px;border-left:2px solid;}
+.voice-history-item.user{background:rgba(99,102,241,0.08);border-color:var(--accent);color:var(--text-2);}
+.voice-history-item.ai{background:rgba(16,185,129,0.08);border-color:#10b981;color:var(--text-2);}
+/* Commands hint */
+.voice-hints{padding:8px 18px 0;display:flex;flex-wrap:wrap;gap:6px;}
+.voice-hint{padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--bg-card2);font-size:10px;color:var(--text-3);cursor:pointer;transition:all .15s;}
+.voice-hint:hover{border-color:var(--accent);color:var(--accent);}
+.voice-actions{display:flex;gap:10px;padding:16px 18px 20px;}
+.voice-btn-main{flex:1;padding:13px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;}
+.voice-btn-main:hover{opacity:.9;transform:translateY(-1px);}
+.voice-btn-close{width:48px;height:48px;border-radius:14px;border:1px solid var(--border-lg);background:var(--bg-card2);color:var(--text-2);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+/* Voice trigger */
+.voice-trigger{position:fixed;bottom:90px;right:24px;z-index:9998;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);border:none;color:white;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 20px rgba(16,185,129,0.5);transition:all .3s;animation:voiceGlow 2.5s ease-in-out infinite;}
+.voice-trigger:hover{transform:scale(1.1);}
+@keyframes voiceGlow{0%,100%{box-shadow:0 4px 20px rgba(16,185,129,0.5);}50%{box-shadow:0 4px 30px rgba(16,185,129,0.8),0 0 0 8px rgba(16,185,129,0.1);}}
+.voice-trigger-label{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:700;color:#10b981;white-space:nowrap;letter-spacing:.5px;}
+.chat-trigger{bottom:160px !important;}
+/* Chat voice button */
+.chat-voice-btn{width:34px;height:34px;border-radius:50%;border:none;background:rgba(99,102,241,0.15);color:var(--accent);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;flex-shrink:0;}
+.chat-voice-btn:hover{background:rgba(99,102,241,.3);}
+</style>
+<style>
+.msg-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:8px;background:var(--red);color:white;font-size:9px;font-weight:700;padding:0 4px;margin-left:2px;}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="navbar" id="navbar">
+  <div class="nav-container">
+    <a class="nav-brand" href="/">
+      <div class="brand-icon"><i class="fas fa-shopping-bag"></i></div>
+      <span class="brand-text">SHOP<span class="brand-accent">VERSE</span></span>
+    </a>
+    <div class="nav-links" id="navLinks">
+      <a href="/" class="nav-link {% if request.path=='/' %}active{% endif %}"><i class="fas fa-home"></i> Home</a>
+      <a href="/map" class="nav-link {% if request.path=='/map' %}active{% endif %}"><i class="fas fa-map-location-dot"></i> Map</a>
+      <a href="/offers" class="nav-link {% if request.path=='/offers' %}active{% endif %}"><i class="fas fa-tags"></i> Offers</a>
+      <a href="/dashboard" class="nav-link {% if request.path=='/dashboard' %}active{% endif %}"><i class="fas fa-user"></i> My Hub</a>
+      <a href="/messages" class="nav-link {% if request.path=='/messages' %}active{% endif %}" id="msgNavLink"><i class="fas fa-comments"></i> Messages <span class="msg-badge" id="msgNavBadge" style="display:none">0</span></a>
+      <a href="/retailer" class="nav-link {% if request.path=='/retailer' %}active{% endif %}"><i class="fas fa-store"></i> Retailer</a>
+      <a href="/billing" class="nav-link {% if request.path=='/billing' %}active{% endif %}"><i class="fas fa-receipt"></i> Checkout</a>
+    </div>
+    <div class="nav-actions">
+      <button class="btn-icon" id="notifBtn"><i class="fas fa-bell"></i><span class="notif-badge" id="notifBadge" style="display:none">0</span></button>
+      <button class="btn-icon" id="locBtn" title="Enable location" onclick="requestLocationAccess()"><i class="fas fa-location-dot"></i></button>
+      <button class="btn-icon voice-nav-btn" onclick="openVoiceAssistant()" title="Voice Assistant" style="color:#10b981;border-color:rgba(16,185,129,0.3);"><i class="fas fa-microphone"></i></button>
+      <div class="user-avatar" id="userAvatar" onclick="toggleUserMenu()"><span id="avatarInitial">?</span></div>
+      <a href="/login" class="btn-login" id="loginBtn">Sign In</a>
+    </div>
+    <button class="hamburger" id="hamburger" onclick="toggleMobileNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div class="user-dropdown" id="userDropdown">
+    <div class="dropdown-header">
+      <div class="dropdown-avatar" id="dropAvatar">A</div>
+      <div><div class="dropdown-name" id="dropName">Guest</div><div class="dropdown-email" id="dropEmail">Not signed in</div></div>
+    </div>
+    <div class="dropdown-divider"></div>
+    <a href="/dashboard" class="dropdown-item"><i class="fas fa-user"></i> My Dashboard</a>
+    <a href="/offers" class="dropdown-item"><i class="fas fa-tags"></i> My Offers</a>
+    <a href="/billing" class="dropdown-item"><i class="fas fa-receipt"></i> Checkout</a>
+    <div class="dropdown-divider"></div>
+    <button class="dropdown-item danger" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+  </div>
+</nav>
+
+<!-- NOTIFICATION PANEL -->
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-panel-header"><span><i class="fas fa-bell"></i> Notifications</span><button onclick="clearNotifications()"><i class="fas fa-trash"></i></button></div>
+  <div class="notif-list" id="notifList"><div class="notif-empty">No notifications yet</div></div>
+</div>
+
+{% block content %}{% endblock %}
+
+<!-- AI CHAT WIDGET -->
+<div class="ai-chat-widget" id="chatWidget">
+  <div class="chat-header">
+    <div class="chat-header-info">
+      <div class="ai-avatar-sm"><i class="fas fa-robot"></i></div>
+      <div>
+        <div class="chat-title">ShopVerseAI</div>
+        <div class="chat-status"><span class="status-dot"></span> Online · AI-powered</div>
+      </div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-msg ai-msg">
+      <div class="msg-avatar"><i class="fas fa-robot"></i></div>
+      <div class="msg-content">
+        <p>👋 Hi! I'm ShopVerseAI. Ask about stores at <b>AMB Mall</b>, deals, or say <em>"open map"</em>!</p>
+        <div class="quick-replies">
+          <button onclick="sendQuickReply('What shops are in AMB Mall?')">🏬 AMB Mall</button>
+          <button onclick="sendQuickReply('Show active offers today')">🏷️ Deals</button>
+          <button onclick="sendQuickReply('Open the map')">🗺️ Map</button>
+          <button onclick="sendQuickReply('Best food near me')">🍛 Food</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="chat-input-area" style="display:flex;gap:8px;align-items:center;padding:12px 16px;border-top:1px solid var(--border);">
+    <button class="chat-voice-btn" onclick="startVoiceChat()" title="Voice input"><i class="fas fa-microphone"></i></button>
+    <input type="text" id="chatInput" placeholder="Ask anything..." onkeypress="handleChatKey(event)" style="flex:1;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-1);font-size:13px;font-family:inherit;">
+    <button onclick="sendChatMessage()" class="chat-send-btn"><i class="fas fa-paper-plane"></i></button>
+  </div>
+</div>
+
+<button class="chat-trigger" id="chatTrigger" onclick="toggleChat()" title="AI Chat">
+  <i class="fas fa-robot"></i>
+  <span class="chat-trigger-label">AI</span>
+</button>
+
+<!-- VOICE ASSISTANT TRIGGER -->
+<button class="voice-trigger" id="voiceTrigger" onclick="openVoiceAssistant()" title="Voice Assistant">
+  <i class="fas fa-microphone"></i>
+  <span class="voice-trigger-label">VOICE</span>
+</button>
+
+<!-- VOICE ASSISTANT MODAL -->
+<div class="voice-modal" id="voiceModal">
+  <div class="voice-container">
+    <div class="voice-header">
+      <h2>🎙️ ShopVerse Voice Assistant</h2>
+      <p>Speak any language — I understand commands &amp; questions</p>
+    </div>
+
+    <!-- Language Selector -->
+    <div class="voice-lang-bar">
+      <label><i class="fas fa-language"></i> Language:</label>
+      <select id="voiceLangSelect"></select>
+    </div>
+
+    <div class="voice-orb-wrap">
+      <div class="voice-orb" id="voiceOrb">
+        <i class="fas fa-microphone" id="voiceOrbIcon"></i>
+      </div>
+    </div>
+    <div class="voice-waves silent" id="voiceWaves">
+      <div class="voice-wave"></div><div class="voice-wave"></div><div class="voice-wave"></div>
+      <div class="voice-wave"></div><div class="voice-wave"></div>
+    </div>
+    <div class="voice-status" id="voiceStatus">Select language and tap the mic</div>
+    <div class="voice-transcript" id="voiceTranscript">Try: "Open map", "Show AMB Mall", "Find Starbucks", "Open checkout"</div>
+    <div class="voice-history" id="voiceHistory"></div>
+
+    <!-- Quick command hints -->
+    <div class="voice-hints">
+      <span class="voice-hint" onclick="triggerVoiceHint('Open the map')">🗺️ Open map</span>
+      <span class="voice-hint" onclick="triggerVoiceHint('Show offers')">🏷️ Show offers</span>
+      <span class="voice-hint" onclick="triggerVoiceHint('AMB Mall shops')">🏬 AMB Mall</span>
+      <span class="voice-hint" onclick="triggerVoiceHint('Find Starbucks')">☕ Find café</span>
+      <span class="voice-hint" onclick="triggerVoiceHint('Open checkout')">💳 Checkout</span>
+      <span class="voice-hint" onclick="triggerVoiceHint('Retailer analytics')">📊 Analytics</span>
+    </div>
+
+    <div class="voice-actions">
+      <button class="voice-btn-main" id="voiceMicBtn" onclick="toggleVoiceListening()">
+        <i class="fas fa-microphone" id="voiceMicIcon"></i>
+        <span id="voiceMicText">Start Listening</span>
+      </button>
+      <button class="voice-btn-close" onclick="closeVoiceAssistant()"><i class="fas fa-times"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- GEOFENCE ALERT -->
+<div class="geofence-alert" id="geofenceAlert">
+  <div class="ga-icon"><i class="fas fa-location-dot"></i></div>
+  <div class="ga-content">
+    <div class="ga-title" id="gaTitle">Geofence Triggered!</div>
+    <div class="ga-msg" id="gaMsg">You've entered a store zone.</div>
+  </div>
+  <a href="/offers" class="ga-action">View Offers</a>
+  <button class="ga-close" onclick="closeGeofenceAlert()"><i class="fas fa-times"></i></button>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block extra_js %}{% endblock %}
+
+<script>
+// Auto-trigger map search if coming from voice command
+window.addEventListener('load', () => {
+  const mapSearch = sessionStorage.getItem('mapSearch');
+  if (mapSearch && window.location.pathname === '/map') {
+    sessionStorage.removeItem('mapSearch');
+    setTimeout(() => {
+      const inp = document.getElementById('locationSearch');
+      if (inp) { inp.value = mapSearch; if(typeof searchLocationBtn==='function') searchLocationBtn(); }
+    }, 800);
+  }
+});
+function triggerVoiceHint(text) {
+  document.getElementById('voiceTranscript').textContent = text;
+  processVoiceCommand(text);
+}
+</script>
+</body>
+</html>

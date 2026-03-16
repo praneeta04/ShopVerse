@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% block title %}My Dashboard{% endblock %}
+{% block content %}
+
+<div class="page-wrapper">
+    <div class="page-header gradient-header purple-header">
+        <div class="ph-bg"></div>
+        <div class="ph-content">
+            <h1><i class="fas fa-chart-pie"></i> My Dashboard</h1>
+            <p>Track your offers, savings, and shopping activity at a glance.</p>
+        </div>
+    </div>
+
+    <div class="dashboard-layout">
+        <!-- PROFILE CARD -->
+        <div class="dash-sidebar">
+            <div class="profile-card">
+                <div class="profile-avatar" id="profileAvatar">A</div>
+                <div class="profile-name" id="profileName">Loading...</div>
+                <div class="profile-email" id="profileEmail">—</div>
+                <div class="profile-tier">
+                    <i class="fas fa-crown"></i> <span id="profileTier">Bronze</span> Member
+                </div>
+                <div class="profile-points">
+                    <div class="points-num" id="profilePoints">0</div>
+                    <div class="points-label">Reward Points</div>
+                </div>
+                <div class="profile-actions">
+                    <a href="/map" class="btn-sm-primary"><i class="fas fa-map"></i> Explore Stores</a>
+                    <a href="/offers" class="btn-sm-outline"><i class="fas fa-tags"></i> View Offers</a>
+                </div>
+            </div>
+
+            <div class="quick-links-card">
+                <h4>Quick Links</h4>
+                <a href="/explore" class="ql-item"><i class="fas fa-compass"></i> Explore</a>
+                <a href="/map" class="ql-item"><i class="fas fa-map-location-dot"></i> Store Map</a>
+                <a href="/offers" class="ql-item"><i class="fas fa-tags"></i> All Offers</a>
+                <a href="/billing" class="ql-item"><i class="fas fa-receipt"></i> Checkout</a>
+                <a href="/messages" class="ql-item"><i class="fas fa-comments"></i> Messages</a>
+                <a href="/retailer" class="ql-item"><i class="fas fa-store"></i> Retailer Portal</a>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="dash-main">
+            <!-- STATS ROW -->
+            <div class="dash-stats-row">
+                <div class="dash-stat-card">
+                    <div class="dsc-icon blue"><i class="fas fa-store"></i></div>
+                    <div class="dsc-info">
+                        <div class="dsc-num">5</div>
+                        <div class="dsc-label">Nearby Stores</div>
+                    </div>
+                </div>
+                <div class="dash-stat-card">
+                    <div class="dsc-icon green"><i class="fas fa-tags"></i></div>
+                    <div class="dsc-info">
+                        <div class="dsc-num">15</div>
+                        <div class="dsc-label">Active Offers</div>
+                    </div>
+                </div>
+                <div class="dash-stat-card">
+                    <div class="dsc-icon purple"><i class="fas fa-ticket"></i></div>
+                    <div class="dsc-info">
+                        <div class="dsc-num" id="claimedCount">0</div>
+                        <div class="dsc-label">Claimed</div>
+                    </div>
+                </div>
+                <div class="dash-stat-card">
+                    <div class="dsc-icon orange"><i class="fas fa-indian-rupee-sign"></i></div>
+                    <div class="dsc-info">
+                        <div class="dsc-num" id="savedAmount">₹0</div>
+                        <div class="dsc-label">Total Saved</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEARBY STORES -->
+            <div class="dash-card">
+                <div class="dc-header">
+                    <h3><i class="fas fa-store"></i> Nearby Stores</h3>
+                    <a href="/map" class="dc-link">View Map <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="nearby-stores-grid" id="nearbyStoresGrid">
+                    <div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                </div>
+            </div>
+
+            <!-- FEATURED OFFERS -->
+            <div class="dash-card">
+                <div class="dc-header">
+                    <h3><i class="fas fa-fire"></i> Featured Offers</h3>
+                    <a href="/offers" class="dc-link">All Offers <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="featured-offers" id="featuredOffers">
+                    <div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading AI offers...</div>
+                </div>
+            </div>
+
+            <!-- ORDER HISTORY -->
+            <div class="dash-card" id="ordersCard" style="display:none;">
+                <div class="dc-header">
+                    <h3><i class="fas fa-shopping-bag"></i> Recent Orders</h3>
+                    <a href="/messages" class="dc-link">Messages <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div id="ordersList" style="display:flex;flex-direction:column;gap:10px;"></div>
+            </div>
+
+            <!-- CLAIMED OFFERS AT CHECKOUT -->
+            <div class="dash-card" id="claimedCard" style="display:none;">
+                <div class="dc-header">
+                    <h3><i class="fas fa-ticket"></i> Your Claimed Offers</h3>
+                    <a href="/billing" class="dc-link">Go to Checkout <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div id="claimedOffersList" style="display:flex;flex-direction:column;gap:8px;"></div>
+                <div style="margin-top:12px;">
+                    <a href="/billing" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:10px;background:linear-gradient(135deg,var(--green),#16a34a);color:white;font-size:13px;font-weight:600;text-decoration:none;">
+                        <i class="fas fa-shopping-cart"></i> Apply at Checkout
+                    </a>
+                </div>
+            </div>
+
+            <!-- RECOMMENDATIONS -->
+            <div class="dash-card" id="recoCard" style="display:none;">
+                <div class="dc-header">
+                    <h3><i class="fas fa-robot" style="color:var(--accent);"></i> Recommended For You</h3>
+                    <a href="/explore" class="dc-link">Explore <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div id="dashRecoGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;"></div>
+            </div>
+
+            <!-- AI ASSISTANT PROMO -->
+            <div class="dash-card ai-promo-card">
+                <div class="aipc-left">
+                    <div class="aipc-icon"><i class="fas fa-robot"></i></div>
+                    <div>
+                        <h3>Chat with ShopVerseAI</h3>
+                        <p>Ask about nearby stores, deals, product availability and more.</p>
+                        <button class="btn-white" onclick="toggleChat()">Start Chatting <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+                <div class="aipc-preview">
+                    <div class="preview-msg ai"><i class="fas fa-robot"></i> Find bakeries near me!</div>
+                    <div class="preview-msg user">Campus Bakery is 50m away with 20% off deals!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const DEMO_LAT = 17.4401, DEMO_LNG = 78.4987;
+let userLat = parseFloat(sessionStorage.getItem('userLat')) || DEMO_LAT;
+let userLng = parseFloat(sessionStorage.getItem('userLng')) || DEMO_LNG;
+
+async function loadDashboard() {
+    const user = JSON.parse(localStorage.getItem('smartaisle_user') || '{}');
+    if (user.name) {
+        document.getElementById('profileAvatar').textContent = user.name[0].toUpperCase();
+        document.getElementById('profileName').textContent = user.name;
+        document.getElementById('profileEmail').textContent = user.email;
+        document.getElementById('profileTier').textContent = user.tier || 'Bronze';
+        document.getElementById('profilePoints').textContent = user.points || 0;
+    }
+
+    // Load nearby stores
+    const sRes = await fetch('/api/stores/nearby', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({lat: userLat, lng: userLng, radius: 500})
+    });
+    const sData = await sRes.json();
+    if (sData.success) {
+        const icons = {bakery:'🥐',cafe:'☕',supermarket:'🛒',restaurant:'🍛',convenience_store:'🏪'};
+        document.getElementById('nearbyStoresGrid').innerHTML = sData.stores.map(s => `
+            <div class="ns-card" onclick="location.href='/store/${s.id}'">
+                <div class="nsc-emoji">${icons[s.category]||'🏬'}</div>
+                <div class="nsc-name">${s.name}</div>
+                <div class="nsc-dist">${s.distance}m</div>
+                ${s.in_geofence ? '<div class="nsc-zone">In Zone</div>' : ''}
+            </div>
+        `).join('');
+    }
+
+    // Load featured offers
+    const allStoresRes = await fetch('/api/stores/all');
+    const allStores = await allStoresRes.json();
+    let offers = [];
+    for (const store of allStores.stores.slice(0,3)) {
+        const oRes = await fetch(`/api/stores/${store.id}?lat=${userLat}&lng=${userLng}`);
+        const oData = await oRes.json();
+        if (oData.success && oData.store.offers) {
+            offers.push(oData.store.offers[0]);
+        }
+    }
+    document.getElementById('featuredOffers').innerHTML = offers.map(o => `
+        <div class="featured-offer-card" onclick="location.href='/offers'">
+            <div class="foc-emoji">${o.product_emoji}</div>
+            <div class="foc-info">
+                <div class="foc-store">${o.store_name}</div>
+                <div class="foc-title">${o.title}</div>
+                <div class="foc-desc">${o.description}</div>
+            </div>
+            <div class="foc-badge">${o.discount_pct}% OFF</div>
+        </div>
+    `).join('');
+}
+
+loadDashboard();
+loadOrderHistory();
+loadSavedOffers();
+loadDashboardRecommendations();
+
+async function loadOrderHistory() {
+    const user = JSON.parse(localStorage.getItem('smartaisle_user') || '{}');
+    if (!user.id) return;
+    try {
+        const res = await fetch(`/api/orders/${user.id}`);
+        const data = await res.json();
+        if (data.orders?.length) {
+            document.getElementById('ordersCard').style.display = 'block';
+            const statusColors = {placed:'var(--orange)',confirmed:'var(--blue)',preparing:'var(--cyan)',ready:'var(--green)',delivered:'var(--text-3)'};
+            document.getElementById('ordersList').innerHTML = data.orders.slice(0,5).map(o => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg-card2);border:1px solid var(--border);border-radius:10px;">
+                    <div>
+                        <div style="font-size:13px;font-weight:600;">${o.id}</div>
+                        <div style="font-size:11px;color:var(--text-3);">${o.items?.map(i=>i.name||'Item').slice(0,2).join(', ')||'Items'}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:14px;font-weight:700;color:var(--green);">₹${o.total}</div>
+                        <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${statusColors[o.status]||'var(--text-3)'}22;color:${statusColors[o.status]||'var(--text-3)'};">${(o.status||'placed').toUpperCase()}</span>
+                    </div>
+                </div>`).join('');
+        }
+    } catch(e) {}
+}
+
+function loadSavedOffers() {
+    const saved = JSON.parse(localStorage.getItem('claimedOffers') || '[]');
+    if (!saved.length) return;
+    document.getElementById('claimedCard').style.display = 'block';
+    const count = document.getElementById('claimedCount');
+    if (count) count.textContent = saved.length;
+    let totalSaved = 0;
+    document.getElementById('claimedOffersList').innerHTML = saved.map(o => {
+        totalSaved += (o.discount_amount || 0);
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:10px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:22px;">${o.product_emoji||'🏷️'}</span>
+                <div>
+                    <div style="font-size:13px;font-weight:600;">${o.title}</div>
+                    <div style="font-size:11px;color:var(--text-3);">${o.store_name}</div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:13px;font-weight:700;color:var(--green);">-${o.discount_pct}%</div>
+                <div style="font-size:11px;color:var(--text-3);">Save ₹${o.discount_amount}</div>
+            </div>
+        </div>`;
+    }).join('');
+    const savedEl = document.getElementById('savedAmount');
+    if (savedEl) savedEl.textContent = '₹' + totalSaved;
+}
+
+async function loadDashboardRecommendations() {
+    const user = JSON.parse(localStorage.getItem('smartaisle_user') || '{}');
+    if (!user.id) return;
+    try {
+        const res = await fetch('/api/recommendations', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({user_id: user.id, lat: userLat, lng: userLng})
+        });
+        const data = await res.json();
+        if (data.recommendations?.length) {
+            const catEmojis = {bakery:'🥐',cafe:'☕',restaurant:'🍛',fashion:'👗',electronics:'📱',beauty:'💄',entertainment:'🎬',lifestyle:'🏮'};
+            document.getElementById('recoCard').style.display = 'block';
+            document.getElementById('dashRecoGrid').innerHTML = data.recommendations.map(r => `
+                <div onclick="location.href='/store/${r.store_id}'" style="background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;cursor:pointer;transition:all .2s;"
+                     onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                    <div style="font-size:28px;margin-bottom:6px;">${catEmojis[r.category]||'🏬'}</div>
+                    <div style="font-size:13px;font-weight:600;">${r.store_name}</div>
+                    <div style="font-size:11px;color:var(--green);margin-top:2px;">🏷️ ${r.top_offer.discount_pct}% off</div>
+                    <div style="font-size:10px;color:var(--text-3);margin-top:2px;">⭐ ${r.rating} · ${r.distance < 1000 ? r.distance+'m' : (r.distance/1000).toFixed(1)+'km'}</div>
+                </div>`).join('');
+        }
+    } catch(e) {}
+}
+</script>
+{% endblock %}

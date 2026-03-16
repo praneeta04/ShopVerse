@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-bg">
+        <div class="hero-orb orb1"></div>
+        <div class="hero-orb orb2"></div>
+        <div class="hero-orb orb3"></div>
+        <div class="hero-grid"></div>
+    </div>
+    <div class="hero-content">
+        <div class="hero-badge">
+            <span class="badge-dot"></span>
+            AI-Powered · Real-Time · Geofencing
+        </div>
+        <h1 class="hero-title">
+            Shop Smarter with<br>
+            <span class="gradient-text">Location Intelligence</span>
+        </h1>
+        <p class="hero-subtitle">
+            Discover nearby stores, receive AI-personalized offers the moment you step close,
+            and unlock exclusive deals crafted just for you.
+        </p>
+        <div class="hero-actions">
+            <a href="/explore" class="btn-primary-lg">
+                <i class="fas fa-map-location-dot"></i> Explore Stores
+            </a>
+            <a href="/login" class="btn-ghost-lg">
+                <i class="fas fa-play-circle"></i> Get Started Free
+            </a>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-item">
+                <span class="stat-num">500m</span>
+                <span class="stat-label">Search Radius</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num">100m</span>
+                <span class="stat-label">Geofence Zone</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num">AI</span>
+                <span class="stat-label">Offer Engine</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num">Live</span>
+                <span class="stat-label">Notifications</span>
+            </div>
+        </div>
+    </div>
+    <div class="hero-visual">
+        <div class="phone-mockup">
+            <div class="phone-screen">
+                <div class="phone-map-bg">
+                    <div class="pulse-ring"></div>
+                    <div class="pulse-dot"></div>
+                    <div class="store-pin pin1"><i class="fas fa-store"></i></div>
+                    <div class="store-pin pin2"><i class="fas fa-mug-hot"></i></div>
+                    <div class="store-pin pin3"><i class="fas fa-bread-slice"></i></div>
+                </div>
+                <div class="phone-offer-card">
+                    <div class="poc-emoji">🎂</div>
+                    <div class="poc-info">
+                        <div class="poc-title">Special Offer!</div>
+                        <div class="poc-desc">20% off Chocolate Cake</div>
+                    </div>
+                    <div class="poc-badge">NEAR</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section-how">
+    <div class="section-container">
+        <div class="section-header">
+            <div class="section-badge">How It Works</div>
+            <h2>From Location to Offer in Seconds</h2>
+            <p>Our AI-driven pipeline transforms your location into personalized savings instantly.</p>
+        </div>
+        <div class="steps-flow">
+            <div class="step-card">
+                <div class="step-num">01</div>
+                <div class="step-icon blue"><i class="fas fa-location-dot"></i></div>
+                <h3>Detect Location</h3>
+                <p>Browser GPS detects your real-time coordinates with high accuracy.</p>
+            </div>
+            <div class="step-arrow"><i class="fas fa-chevron-right"></i></div>
+            <div class="step-card">
+                <div class="step-num">02</div>
+                <div class="step-icon purple"><i class="fas fa-map-location-dot"></i></div>
+                <h3>Discover Stores</h3>
+                <p>Nearby stores are fetched within 500m using location intelligence.</p>
+            </div>
+            <div class="step-arrow"><i class="fas fa-chevron-right"></i></div>
+            <div class="step-card">
+                <div class="step-num">03</div>
+                <div class="step-icon green"><i class="fas fa-circle-nodes"></i></div>
+                <h3>AI Geofence</h3>
+                <p>Enter 100m radius and AI triggers a personalized geofence event.</p>
+            </div>
+            <div class="step-arrow"><i class="fas fa-chevron-right"></i></div>
+            <div class="step-card">
+                <div class="step-num">04</div>
+                <div class="step-icon orange"><i class="fas fa-tags"></i></div>
+                <h3>Claim Offers</h3>
+                <p>Receive AI-generated offers and redeem discounts instantly at POS.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section-features">
+    <div class="section-container">
+        <div class="section-header">
+            <div class="section-badge">Platform Features</div>
+            <h2>Everything You Need for Smart Retail</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card card-large">
+                <div class="fc-icon"><i class="fas fa-robot"></i></div>
+                <h3>AI Agent System</h3>
+                <p>Multiple AI agents working together — context-based offer generator, shopping conversation agent, customer intent detection, and dynamic notification generator.</p>
+                <div class="fc-tags">
+                    <span>GPT-Powered</span><span>Intent Detection</span><span>Real-Time</span>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="fc-icon green"><i class="fas fa-map-location-dot"></i></div>
+                <h3>Live Store Map</h3>
+                <p>Interactive map showing real nearby stores with distance, ratings, and active promotions.</p>
+            </div>
+            <div class="feature-card">
+                <div class="fc-icon purple"><i class="fas fa-bell"></i></div>
+                <h3>Smart Notifications</h3>
+                <p>Browser push notifications triggered the moment you enter a store's geofence zone.</p>
+            </div>
+            <div class="feature-card">
+                <div class="fc-icon orange"><i class="fas fa-chart-line"></i></div>
+                <h3>Retailer Analytics</h3>
+                <p>Real-time dashboard showing geofence entries, offer redemptions, and revenue charts.</p>
+            </div>
+            <div class="feature-card">
+                <div class="fc-icon blue"><i class="fas fa-receipt"></i></div>
+                <h3>Smart Billing</h3>
+                <p>Offers are automatically applied at checkout showing original price, discount, and final amount.</p>
+            </div>
+            <div class="feature-card card-wide">
+                <div class="fc-icon red"><i class="fas fa-building"></i></div>
+                <h3>Remote Exploration</h3>
+                <p>Browse stores, products, and offers from anywhere — even when you're not physically near the location. Search any mall or campus to explore stores remotely.</p>
+                <div class="fc-tags">
+                    <span>AMB Mall</span><span>College Campus</span><span>City Center</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- DEMO STORES PREVIEW -->
+<section class="section-stores">
+    <div class="section-container">
+        <div class="section-header">
+            <div class="section-badge">Demo Stores</div>
+            <h2>Explore Our Campus Stores</h2>
+            <p>Live demo powered by our College Campus location with 5 real stores.</p>
+        </div>
+        <div class="store-preview-grid" id="storePreviewGrid">
+            <!-- Populated by JS -->
+        </div>
+        <div class="center-action">
+            <a href="/explore" class="btn-primary-lg"><i class="fas fa-map"></i> View on Map</a>
+        </div>
+    </div>
+</section>
+
+
+<!-- AI RECOMMENDATIONS (for logged-in users) -->
+<section class="section-stores" id="recoSection" style="display:none;">
+    <div class="section-container">
+        <div class="section-header">
+            <div class="section-badge">AI-Powered</div>
+            <h2>Recommended For You</h2>
+            <p>Based on your browsing and purchase history.</p>
+        </div>
+        <div class="store-preview-grid" id="recoGrid"></div>
+        <div class="center-action">
+            <a href="/explore" class="btn-primary-lg"><i class="fas fa-compass"></i> Explore More</a>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="section-cta">
+    <div class="cta-card">
+        <div class="cta-glow"></div>
+        <div class="cta-content">
+            <div class="cta-icon"><i class="fas fa-location-crosshairs"></i></div>
+            <h2>Ready to Experience Smart Retail?</h2>
+            <p>Enable location access and start discovering personalized offers near you in seconds.</p>
+            <div class="cta-actions">
+                <button class="btn-white-lg" onclick="requestLocationAndExplore()">
+                    <i class="fas fa-location-dot"></i> Enable Location & Explore
+                </button>
+                <a href="/login" class="btn-outline-white">Create Account</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="footer-content">
+        <div class="footer-brand">
+            <div class="nav-brand"><div class="brand-icon"><i class="fas fa-location-crosshairs"></i></div>
+            <span class="brand-text">SHOP<span class="brand-accent">VERSE</span></span></div>
+            <p>AI-Driven Geofencing Retail Assistant for the next generation of smart shopping.</p>
+        </div>
+        <div class="footer-links">
+            <div><h4>Platform</h4>
+                <a href="/map">Store Map</a><a href="/offers">Offers</a><a href="/dashboard">Dashboard</a>
+            </div>
+            <div><h4>For Retailers</h4>
+                <a href="/retailer">Retailer Portal</a><a href="/retailer">Analytics</a>
+            </div>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <span>© 2024 ShopVerse · AI Smart Shopping Platform</span>
+        <span class="footer-tech">Flask · MongoDB · Socket.IO · Razorpay · Google Auth · AI</span>
+    </div>
+</footer>
+
+<script>
+async function loadStorePreview() {
+    const res = await fetch('/api/stores/all');
+    const data = await res.json();
+    const grid = document.getElementById('storePreviewGrid');
+    const icons = {bakery:'🥐',cafe:'☕',supermarket:'🛒',restaurant:'🍛',convenience_store:'🏪'};
+    grid.innerHTML = data.stores.map(s => `
+        <div class="store-preview-card" onclick="location.href='/store/${s.id}'">
+            <div class="spc-emoji">${icons[s.category]||'🏬'}</div>
+            <div class="spc-info">
+                <div class="spc-name">${s.name}</div>
+                <div class="spc-cat">${s.category.replace('_',' ').toUpperCase()}</div>
+                <div class="spc-rating"><i class="fas fa-star"></i> ${s.rating}</div>
+            </div>
+            <div class="spc-arrow"><i class="fas fa-chevron-right"></i></div>
+        </div>
+    `).join('');
+}
+loadStorePreview();
+
+async function loadRecommendations() {
+    const user = JSON.parse(localStorage.getItem('smartaisle_user') || 'null');
+    if (!user) return;
+    const lat = parseFloat(sessionStorage.getItem('userLat')) || 17.4401;
+    const lng = parseFloat(sessionStorage.getItem('userLng')) || 78.4987;
+    try {
+        const res = await fetch('/api/recommendations', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({user_id: user.id, lat, lng})
+        });
+        const data = await res.json();
+        if (data.recommendations?.length) {
+            const catEmojis = {bakery:'🥐',cafe:'☕',restaurant:'🍛',fashion:'👗',electronics:'📱',beauty:'💄',entertainment:'🎬',lifestyle:'🏮'};
+            document.getElementById('recoSection').style.display = 'block';
+            document.getElementById('recoGrid').innerHTML = data.recommendations.map(r => `
+                <div class="store-preview-card" onclick="location.href='/store/${r.store_id}'">
+                    <div class="spc-emoji">${catEmojis[r.category]||'🏬'}</div>
+                    <div class="spc-info">
+                        <div class="spc-name">${r.store_name}</div>
+                        <div class="spc-cat" style="color:var(--green);">🏷️ ${r.top_offer.discount_pct}% off today</div>
+                        <div class="spc-rating"><i class="fas fa-star"></i> ${r.rating}</div>
+                    </div>
+                    <div class="spc-arrow"><i class="fas fa-chevron-right"></i></div>
+                </div>`).join('');
+        }
+    } catch(e) {}
+}
+loadRecommendations();
+
+
+function requestLocationAndExplore() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            sessionStorage.setItem('userLat', pos.coords.latitude);
+            sessionStorage.setItem('userLng', pos.coords.longitude);
+            window.location.href = '/map';
+        }, () => window.location.href = '/map');
+    } else window.location.href = '/map';
+}
+</script>
+{% endblock %}

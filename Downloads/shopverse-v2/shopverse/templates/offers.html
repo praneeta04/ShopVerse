@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}Offers{% endblock %}
+{% block content %}
+
+<div class="page-wrapper">
+    <div class="page-header gradient-header">
+        <div class="ph-bg"></div>
+        <div class="ph-content">
+            <h1><i class="fas fa-tags"></i> AI-Powered Offers</h1>
+            <p>Personalized deals generated just for you based on your location and preferences.</p>
+            <div class="ph-stats">
+                <div class="ph-stat"><span id="offerCount">0</span> Active Offers</div>
+                <div class="ph-stat"><span id="totalSavings">₹0</span> Potential Savings</div>
+                <div class="ph-stat"><span id="avgDiscount">0%</span> Avg. Discount</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="offers-layout">
+        <!-- FILTER SIDEBAR -->
+        <div class="offers-sidebar">
+            <div class="filter-card">
+                <h3><i class="fas fa-sliders"></i> Filters</h3>
+                <div class="filter-section">
+                    <label class="filter-label">Category</label>
+                    <div class="filter-options">
+                        <button class="fopt active" onclick="filterOffers(this,'all')">All</button>
+                        <button class="fopt" onclick="filterOffers(this,'bakery')">🥐 Bakery</button>
+                        <button class="fopt" onclick="filterOffers(this,'cafe')">☕ Cafe</button>
+                        <button class="fopt" onclick="filterOffers(this,'supermarket')">🛒 Market</button>
+                        <button class="fopt" onclick="filterOffers(this,'restaurant')">🍛 Food</button>
+                    </div>
+                </div>
+                <div class="filter-section">
+                    <label class="filter-label">Min Discount</label>
+                    <div class="slider-wrap">
+                        <input type="range" id="discountSlider" min="0" max="50" value="0" oninput="updateDiscountFilter(this.value)">
+                        <span id="discountVal">0%+</span>
+                    </div>
+                </div>
+                <div class="filter-section">
+                    <label class="filter-label">Location</label>
+                    <div class="location-filter">
+                        <div class="lf-status" id="lfStatus">
+                            <i class="fas fa-circle-notch fa-spin"></i> Detecting...
+                        </div>
+                        <button class="btn-sm" onclick="refreshOffers()"><i class="fas fa-sync"></i> Refresh</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CLAIMED OFFERS -->
+            <div class="filter-card">
+                <h3><i class="fas fa-ticket"></i> Claimed Offers</h3>
+                <div id="claimedList">
+                    <div class="empty-claimed">No offers claimed yet.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OFFERS GRID -->
+        <div class="offers-main">
+            <div class="offers-toolbar">
+                <div class="ot-left">
+                    <h2>Available Offers</h2>
+                    <span class="offer-badge" id="offerBadge">Loading...</span>
+                </div>
+                <div class="ot-right">
+                    <button class="btn-sm active" onclick="setView(this,'grid')"><i class="fas fa-grid-2"></i></button>
+                    <button class="btn-sm" onclick="setView(this,'list')"><i class="fas fa-list"></i></button>
+                </div>
+            </div>
+
+            <div class="offers-grid" id="offersGrid">
+                <!-- Offer cards rendered by JS -->
+                <div class="offers-loading"><i class="fas fa-spinner fa-spin"></i> Loading AI offers...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OFFER CLAIM MODAL -->
+<div class="modal-overlay" id="claimModal" onclick="closeClaimModal(event)">
+    <div class="modal-card" id="claimModalCard">
+        <button class="modal-close" onclick="closeClaimModalForce()"><i class="fas fa-times"></i></button>
+        <div id="claimModalContent"></div>
+    </div>
+</div>
+
+<!-- BILLING MODAL -->
+<div class="modal-overlay" id="billingModal" onclick="closeBillingModal(event)">
+    <div class="modal-card billing-card" id="billingModalCard">
+        <button class="modal-close" onclick="closeBillingModalForce()"><i class="fas fa-times"></i></button>
+        <div id="billingContent"></div>
+    </div>
+</div>
+
+<script>
+let allOffers = [], claimedOffers = [], activeFilter = 'all', minDiscount = 0;
+const DEMO_LAT = 17.4401, DEMO_LNG = 78.4987;
+let userLat = parseFloat(sessionStorage.getItem('userLat')) || DEMO_LAT;
+let userLng = parseFloat(sessionStorage.getItem('userLng')) || DEMO_LNG;
+
+const params = new URLSearchParams(window.location.search);
+const storeId = params.get('store');
+
+async function loadOffers() {
+    const res = await fetch('/api/offers/generate', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({lat: userLat, lng: userLng, store_id: storeId || null,
+            force: true}) // force generate even if not in geofence for browsing
+    });
+
+    // fallback: load all offers from all stores
+    const allStoresRes = await fetch('/api/stores/all');
+    const storesData = await allStoresRes.json();
+
+    // generate offers for all stores for browsing
+    let offers = [];
+    for (const store of storesData.stores) {
+        if (storeId && store.id !== storeId) continue;
+        const sRes = await fetch(`/api/stores/${store.id}?lat=${userLat}&lng=${userLng}`);
+        const sData = await sRes.json();
+        if (sData.success && sData.store.offers) {
+            sData.store.offers.forEach(o => {
+                o.store_category = store.category;
+                o.in_geofence = sData.store.in_geofence;
+                o.store_distance = sData.store.distance;
+                offers.push(o);
+            });
+        }
+    }
+
+    allOffers = offers;
+    renderOffers();
+    updateStats();
+    document.getElementById('lfStatus').innerHTML = `<i class="fas fa-location-dot"></i> ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
+}
+
+function renderOffers() {
+    const grid = document.getElementById('offersGrid');
+    let filtered = allOffers.filter(o => {
+        const catMatch = activeFilter === 'all' || o.store_category === activeFilter;
+        const discMatch = o.discount_pct >= minDiscount;
+        return catMatch && discMatch;
+    });
+
+    if (!filtered.length) {
+        grid.innerHTML = '<div class="no-offers"><i class="fas fa-tag"></i><p>No offers match your filters.</p></div>';
+        return;
+    }
+
+    grid.innerHTML = filtered.map(o => `
+        <div class="offer-card ${o.in_geofence ? 'geofence-offer' : ''} ${claimedOffers.includes(o.id) ? 'claimed' : ''}">
+            ${o.in_geofence ? '<div class="oc-geofence-tag"><i class="fas fa-location-dot"></i> Near You</div>' : ''}
+            ${o.is_ai_generated ? '<div class="oc-ai-tag"><i class="fas fa-robot"></i> AI Pick</div>' : ''}
+            <div class="oc-top">
+                <div class="oc-emoji">${o.product_emoji}</div>
+                <div class="oc-discount-badge">${o.discount_pct}% OFF</div>
+            </div>
+            <div class="oc-body">
+                <div class="oc-store">${o.store_name}</div>
+                <div class="oc-title">${o.title}</div>
+                <div class="oc-product"><i class="fas fa-box"></i> ${o.product}</div>
+                <div class="oc-desc">${o.description}</div>
+                <div class="oc-pricing">
+                    <span class="oc-orig">₹${o.original_price}</span>
+                    <span class="oc-final">₹${o.final_price}</span>
+                    <span class="oc-save">Save ₹${o.discount_amount}</span>
+                </div>
+                <div class="oc-validity"><i class="fas fa-clock"></i> Valid till ${o.valid_until}</div>
+            </div>
+            <div class="oc-actions">
+                ${claimedOffers.includes(o.id) ?
+                    `<button class="btn-claimed" disabled><i class="fas fa-check"></i> Claimed</button>` :
+                    `<button class="btn-claim-offer" onclick="claimOffer('${o.id}','${o.store_id}')"><i class="fas fa-ticket"></i> Claim Offer</button>`
+                }
+                <button class="btn-ghost-sm" onclick="viewDetails('${o.id}')"><i class="fas fa-eye"></i></button>
+            </div>
+        </div>
+    `).join('');
+
+    document.getElementById('offerBadge').textContent = `${filtered.length} offers`;
+}
+
+function updateStats() {
+    document.getElementById('offerCount').textContent = allOffers.length;
+    const totalSavings = allOffers.reduce((sum, o) => sum + o.discount_amount, 0);
+    const avgDisc = allOffers.length ? Math.round(allOffers.reduce((s,o) => s+o.discount_pct, 0)/allOffers.length) : 0;
+    document.getElementById('totalSavings').textContent = `₹${totalSavings}`;
+    document.getElementById('avgDiscount').textContent = `${avgDisc}%`;
+}
+
+async function claimOffer(offerId, storeId) {
+    const user = JSON.parse(localStorage.getItem('smartaisle_user') || 'null');
+    const res = await fetch('/api/offers/claim', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({offer_id: offerId, store_id: storeId, user_id: user?.id || 'guest'})
+    });
+    const data = await res.json();
+    if (data.success) {
+        claimedOffers.push(offerId);
+        // Save to localStorage for checkout auto-apply
+        const saved = JSON.parse(localStorage.getItem('claimedOffers') || '[]');
+        const exists = saved.find(o => o.id === data.offer.id);
+        if (!exists) {
+            saved.push(data.offer);
+            localStorage.setItem('claimedOffers', JSON.stringify(saved));
+        }
+        if (data.billing) {
+            showBillingModal(data.billing);
+        } else if (data.offer) {
+            showBillingModal({
+                product: data.offer.product,
+                original_price: data.offer.original_price,
+                discount_pct: data.offer.discount_pct,
+                discount_amount: data.offer.discount_amount,
+                final_price: data.offer.final_price
+            });
+        }
+        updateClaimedList(data.offer);
+        renderOffers();
+        addNotification('🎟️ Offer Claimed!', `${data.offer.title} — saved for checkout!`);
+    }
+}
+
+function showBillingModal(billing) {
+    document.getElementById('billingModal').style.display = 'flex';
+    document.getElementById('billingContent').innerHTML = `
+        <div class="billing-receipt">
+            <div class="receipt-header">
+                <div class="receipt-icon"><i class="fas fa-receipt"></i></div>
+                <h2>Billing Summary</h2>
+                <p>Offer Applied Successfully!</p>
+            </div>
+            <div class="receipt-rows">
+                <div class="receipt-row">
+                    <span>Product</span>
+                    <span>${billing.product}</span>
+                </div>
+                <div class="receipt-row">
+                    <span>Original Price</span>
+                    <span>₹${billing.original_price}</span>
+                </div>
+                <div class="receipt-row discount-row">
+                    <span>Discount (${billing.discount_pct}%)</span>
+                    <span>- ₹${billing.discount_amount}</span>
+                </div>
+                <div class="receipt-divider"></div>
+                <div class="receipt-row total-row">
+                    <span>Final Amount</span>
+                    <span>₹${billing.final_price}</span>
+                </div>
+            </div>
+            <div class="receipt-actions">
+                <button class="btn-primary" onclick="closeBillingModalForce()"><i class="fas fa-check"></i> Done</button>
+                <a href="/billing" class="btn-ghost">View Full Billing</a>
+            </div>
+        </div>
+    `;
+}
+
+function updateClaimedList(offer) {
+    const list = document.getElementById('claimedList');
+    const empty = list.querySelector('.empty-claimed');
+    if (empty) empty.remove();
+    const item = document.createElement('div');
+    item.className = 'claimed-item';
+    item.innerHTML = `<span>${offer.product_emoji} ${offer.product}</span><span class="ci-save">-${offer.discount_pct}%</span>`;
+    list.insertBefore(item, list.firstChild);
+}
+
+function filterOffers(btn, cat) {
+    document.querySelectorAll('.fopt').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = cat;
+    renderOffers();
+}
+function updateDiscountFilter(val) {
+    minDiscount = parseInt(val);
+    document.getElementById('discountVal').textContent = `${val}%+`;
+    renderOffers();
+}
+function setView(btn, view) {
+    document.querySelectorAll('.ot-right .btn-sm').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const grid = document.getElementById('offersGrid');
+    grid.className = view === 'list' ? 'offers-list' : 'offers-grid';
+}
+function refreshOffers() { loadOffers(); }
+function viewDetails(id) {
+    const o = allOffers.find(x => x.id === id);
+    if (!o) return;
+    document.getElementById('claimModal').style.display = 'flex';
+    document.getElementById('claimModalContent').innerHTML = `
+        <div class="offer-detail-modal">
+            <div class="odm-top">
+                <div class="odm-emoji">${o.product_emoji}</div>
+                <div class="odm-badge">${o.discount_pct}% OFF</div>
+            </div>
+            <h2>${o.title}</h2>
+            <div class="odm-store">${o.store_name} ${o.in_geofence ? '· <span class="in-zone-tag">In Your Zone</span>':''}</div>
+            <p>${o.description}</p>
+            <div class="odm-pricing">
+                <div class="odm-price-row"><span>Original</span><span class="orig">₹${o.original_price}</span></div>
+                <div class="odm-price-row"><span>Discount</span><span class="disc">-₹${o.discount_amount}</span></div>
+                <div class="odm-price-row final"><span>You Pay</span><span>₹${o.final_price}</span></div>
+            </div>
+            <div class="odm-validity"><i class="fas fa-clock"></i> Valid till ${o.valid_until}</div>
+            <button class="btn-primary full-width" onclick="claimOffer('${o.id}','${o.store_id}'); closeClaimModalForce()">
+                <i class="fas fa-ticket"></i> Claim This Offer
+            </button>
+        </div>
+    `;
+}
+function closeClaimModal(e) { if (e.target === document.getElementById('claimModal')) closeClaimModalForce(); }
+function closeClaimModalForce() { document.getElementById('claimModal').style.display = 'none'; }
+function closeBillingModal(e) { if (e.target === document.getElementById('billingModal')) closeBillingModalForce(); }
+function closeBillingModalForce() { document.getElementById('billingModal').style.display = 'none'; }
+
+window.onload = loadOffers;
+</script>
+{% endblock %}

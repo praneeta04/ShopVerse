@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% block title %}Store Details{% endblock %}
+{% block extra_css %}
+<style>
+/* 3D Modal */
+.view3d-modal {
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,0.9); backdrop-filter:blur(8px);
+  align-items:center; justify-content:center;
+}
+.view3d-modal.open { display:flex; }
+.view3d-container {
+  width:min(900px,95vw); height:min(600px,85vh);
+  background:var(--bg-card); border:1px solid var(--border-lg);
+  border-radius:var(--radius-xl); overflow:hidden; position:relative;
+}
+.view3d-header {
+  position:absolute; top:0; left:0; right:0; z-index:10;
+  background:linear-gradient(to bottom,rgba(13,20,36,0.95),transparent);
+  padding:16px 20px; display:flex; justify-content:space-between; align-items:center;
+}
+.view3d-title { font-size:16px; font-weight:700; }
+.view3d-close {
+  width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.1);
+  color:white; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; border:none; font-size:14px;
+}
+#view3dCanvas { width:100%; height:100%; display:block; }
+.view3d-controls {
+  position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+  display:flex; gap:8px;
+}
+.view3d-btn {
+  padding:8px 16px; border-radius:20px; background:rgba(99,102,241,0.8);
+  color:white; font-size:12px; font-weight:600; border:none; cursor:pointer;
+}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-wrapper">
+    <div class="store-detail-page" id="storeDetailPage">
+        <div class="loading-page"><i class="fas fa-spinner fa-spin"></i> Loading store...</div>
+    </div>
+</div>
+
+<!-- 3D View Modal -->
+<div class="view3d-modal" id="view3dModal">
+    <div class="view3d-container">
+        <div class="view3d-header">
+            <div class="view3d-title" id="view3dTitle">3D Store View</div>
+            <button class="view3d-close" onclick="close3DView()"><i class="fas fa-times"></i></button>
+        </div>
+        <canvas id="view3dCanvas"></canvas>
+        <div class="view3d-controls">
+            <button class="view3d-btn" onclick="rotate3DLeft()"><i class="fas fa-rotate-left"></i> Rotate</button>
+            <button class="view3d-btn" onclick="reset3DView()"><i class="fas fa-expand"></i> Reset</button>
+            <button class="view3d-btn" onclick="rotate3DRight()"><i class="fas fa-rotate-right"></i> Rotate</button>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+const storeId = "{{ store_id }}";
+const DEMO_LAT = 17.4401, DEMO_LNG = 78.4987;
+let userLat = parseFloat(sessionStorage.getItem('userLat')) || DEMO_LAT;
+let userLng = parseFloat(sessionStorage.getItem('userLng')) || DEMO_LNG;
+const icons = {bakery:'🥐',cafe:'☕',supermarket:'🛒',restaurant:'🍛',convenience_store:'🏪',
+    fashion:'👗',beauty:'💄',entertainment:'🎬',electronics:'📱',lifestyle:'🏠'};
+const catColors = {bakery:'#f59e0b',cafe:'#8b5cf6',supermarket:'#22c55e',restaurant:'#ef4444',
+    convenience_store:'#06b6d4',fashion:'#ec4899',beauty:'#f472b6',
+    entertainment:'#7c3aed',electronics:'#6b7280',lifestyle:'#14b8a6'};
+
+async function loadStore() {
+    const res = await fetch(`/api/stores/${storeId}?lat=${userLat}&lng=${userLng}`);
+    const data = await res.json();
+    if (!data.success) { document.getElementById('storeDetailPage').innerHTML = '<div class="error-page">Store not found.</div>'; return; }
+    const s = data.store;
+    const stars = '★'.repeat(Math.round(s.rating)) + '☆'.repeat(5-Math.round(s.rating));
+    const color = s.color || catColors[s.category] || '#6366f1';
+    document.getElementById('storeDetailPage').innerHTML = `
+        <div class="store-hero ${s.in_geofence ? 'geofence-active' : ''}">
+            <div class="sh-bg"></div>
+            <div class="sh-content">
+                <button class="back-btn" onclick="history.back()"><i class="fas fa-arrow-left"></i> Back</button>
+                <div class="sh-top">
+                    <div class="sh-emoji">${icons[s.category]||'🏬'}</div>
+                    <div class="sh-info">
+                        <div class="sh-cat">${s.category.replace('_',' ').toUpperCase()}</div>
+                        <h1>${s.name}</h1>
+                        <div class="sh-meta">
+                            <span class="stars">${stars}</span>
+                            <span>${s.rating}/5</span>
+                            <span><i class="fas fa-ruler"></i> ${s.distance}m from you</span>
+                            ${s.mall ? `<span>🏬 ${s.mall}</span>` : ''}
+                            ${s.floor ? `<span>📍 ${s.floor} · ${s.shop_number||''}</span>` : ''}
+                        </div>
+                        <div class="sh-address"><i class="fas fa-map-pin"></i> ${s.address}</div>
+                        <div class="sh-phone"><i class="fas fa-phone"></i> ${s.phone}</div>
+                    </div>
+                </div>
+                ${s.in_geofence ?
+                    '<div class="geofence-banner"><i class="fas fa-location-dot"></i> You are within the geofence! Exclusive offers are active.</div>' :
+                    '<div class="remote-banner"><i class="fas fa-eye"></i> Browsing remotely — Visit the store for exclusive geofence offers.</div>'
+                }
+                
+                <!-- 3D View Button -->
+                <button class="btn-3d" onclick="open3DView('${s.id}','${s.name}','${s.category}','${color}')" style="background:linear-gradient(135deg,${color},${color}88);border:none;padding:12px 24px;border-radius:12px;color:white;font-size:15px;font-weight:700;cursor:pointer;margin-top:16px;display:flex;align-items:center;gap:10px;">
+                    <i class="fas fa-cube"></i> View 3D Store Layout
+                </button>
+            </div>
+        </div>
+
+        <div class="store-content-grid">
+            <!-- Products -->
+            <div class="store-section">
+                <h2 class="ss-title"><i class="fas fa-box-open"></i> Products</h2>
+                <div class="products-grid">
+                    ${s.products.map(p => `
+                        <div class="product-card">
+                            <div class="pc-emoji">${p.emoji}</div>
+                            <div class="pc-name">${p.name}</div>
+                            <div class="pc-price">₹${p.price}</div>
+                            <button class="pc-add" onclick="addToCart('${p.id}','${p.name}',${p.price})">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Offers -->
+            <div class="store-section">
+                <h2 class="ss-title"><i class="fas fa-tags"></i> Active Offers ${s.in_geofence ? '<span class="live-badge">LIVE</span>':'<span class="remote-badge">PREVIEW</span>'}</h2>
+                <div class="store-offers-list">
+                    ${s.offers.map(o => `
+                        <div class="sol-card">
+                            <div class="sol-left">
+                                <div class="sol-emoji">${o.product_emoji}</div>
+                                <div class="sol-info">
+                                    <div class="sol-title">${o.title}</div>
+                                    <div class="sol-desc">${o.description}</div>
+                                    <div class="sol-validity"><i class="fas fa-clock"></i> ${o.valid_until}</div>
+                                </div>
+                            </div>
+                            <div class="sol-right">
+                                <div class="sol-discount">${o.discount_pct}%<br><small>OFF</small></div>
+                                <div class="sol-price">
+                                    <span class="sol-orig">₹${o.original_price}</span>
+                                    <span class="sol-final">₹${o.final_price}</span>
+                                </div>
+                                ${s.in_geofence ?
+                                    `<button class="btn-primary sm" onclick="claimOffer('${o.id}','${s.id}')">Claim</button>` :
+                                    `<button class="btn-ghost sm" title="Available when in store">🔒 In-Store Only</button>`
+                                }
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Map Preview -->
+            <div class="store-section map-section">
+                <h2 class="ss-title"><i class="fas fa-map"></i> Location</h2>
+                <div id="storeMap" style="height:200px;border-radius:12px;overflow:hidden;"></div>
+                <div class="map-actions-row">
+                    <a href="/map" class="btn-sm-primary"><i class="fas fa-directions"></i> Open in Map</a>
+                </div>
+            </div>
+        </div>
+    `;
+    initMiniMap(s.lat, s.lng);
+}
+
+function initMiniMap(lat, lng) {
+    if (!window.L) return;
+    const map = L.map('storeMap').setView([lat, lng], 17);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+    L.marker([lat, lng]).addTo(map);
+    if (userLat && userLng) {
+        const icon = L.divIcon({className:'',html:'<div style="background:#6366f1;border:3px solid white;border-radius:50%;width:16px;height:16px;"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+        L.marker([userLat, userLng], {icon}).addTo(map);
+    }
+}
+
+async function addToCart(pid, name, price) {
+    await fetch('/api/cart/add', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({product_id:pid, name, price})
+    });
+    showToast(`${name} added to cart! 🛒`);
+}
+
+async function claimOffer(offerId, storeId) {
+    const res = await fetch('/api/offers/claim', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({offer_id:offerId, store_id:storeId})
+    });
+    const data = await res.json();
+    if (data.success) window.location.href = `/offers?store=${storeId}`;
+}
+
+function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast-notification';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add('show'), 100);
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+// ─── 3D STORE VIEW ───────────────────────────────────────────────────────────
+let scene3d, camera3d, renderer3d, animFrame3d, isDragging3d = false;
+let prevMouseX = 0, prevMouseY = 0, rotY = 0, rotX = 0;
+
+function open3DView(storeId, storeName, category, color) {
+    document.getElementById('view3dModal').classList.add('open');
+    document.getElementById('view3dTitle').textContent = `🏬 3D View — ${storeName}`;
+    setTimeout(() => init3DScene(category, color), 50);
+}
+
+function close3DView() {
+    document.getElementById('view3dModal').classList.remove('open');
+    if (animFrame3d) cancelAnimationFrame(animFrame3d);
+}
+
+function init3DScene(category, color) {
+    if (animFrame3d) cancelAnimationFrame(animFrame3d);
+    const canvas = document.getElementById('view3dCanvas');
+    const W = canvas.parentElement.clientWidth;
+    const H = canvas.parentElement.clientHeight;
+    canvas.width = W; canvas.height = H;
+
+    scene3d = new THREE.Scene();
+    scene3d.background = new THREE.Color(0x050914);
+    scene3d.fog = new THREE.Fog(0x050914, 20, 60);
+    camera3d = new THREE.PerspectiveCamera(55, W/H, 0.1, 100);
+    camera3d.position.set(0, 6, 12);
+    camera3d.lookAt(0, 0, 0);
+    if (renderer3d) renderer3d.dispose();
+    renderer3d = new THREE.WebGLRenderer({canvas, antialias:true});
+    renderer3d.setSize(W, H);
+    renderer3d.shadowMap.enabled = true;
+
+    const hexColor = parseInt(color.replace('#',''), 16);
+    scene3d.add(new THREE.AmbientLight(0x334466, 0.8));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(5, 10, 5); dirLight.castShadow = true; scene3d.add(dirLight);
+    const pointLight = new THREE.PointLight(hexColor, 2, 15); pointLight.position.set(0, 4, 0); scene3d.add(pointLight);
+
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(30,30), new THREE.MeshStandardMaterial({color:0x0d1424,roughness:0.8}));
+    floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; scene3d.add(floor);
+    scene3d.add(new THREE.GridHelper(30, 30, 0x1e2a40, 0x1e2a40));
+
+    build3DStore(category, color, hexColor);
+
+    rotY = 0; rotX = 0.3;
+    const group = scene3d.children.find(c => c.isGroup);
+    function animate() {
+        animFrame3d = requestAnimationFrame(animate);
+        if (!isDragging3d && group) rotY += 0.005;
+        if (group) { group.rotation.y = rotY; group.rotation.x = rotX; }
+        renderer3d.render(scene3d, camera3d);
+    }
+    animate();
+
+    canvas.onmousedown = e => { isDragging3d = true; prevMouseX = e.clientX; prevMouseY = e.clientY; };
+    canvas.onmouseup = () => { isDragging3d = false; };
+    canvas.onmousemove = e => {
+        if (!isDragging3d) return;
+        rotY += (e.clientX - prevMouseX) * 0.01;
+        rotX = Math.max(-0.8, Math.min(0.8, rotX + (e.clientY - prevMouseY) * 0.005));
+        prevMouseX = e.clientX; prevMouseY = e.clientY;
+    };
+}
+
+function build3DStore(category, color, hexColor) {
+    const group = new THREE.Group();
+    const mat = (c, r=0.4, m=0.3) => new THREE.MeshStandardMaterial({color:c, roughness:r, metalness:m});
+    const box = (w,h,d,mt) => new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mt);
+    const wallMat = mat(0x111827, 0.7, 0.1);
+    const accentMat = mat(hexColor, 0.3, 0.5);
+    const glassMat = new THREE.MeshStandardMaterial({color:hexColor, transparent:true, opacity:0.3, roughness:0.1, metalness:0.9});
+
+    const back = box(8,5,0.2,wallMat); back.position.set(0,2.5,-4); group.add(back);
+    const leftW = box(0.2,5,8,wallMat); leftW.position.set(-4,2.5,0); group.add(leftW);
+    const rightW = box(0.2,5,8,wallMat); rightW.position.set(4,2.5,0); group.add(rightW);
+    const roof = box(8.4,0.2,8.4,accentMat); roof.position.set(0,5,0); group.add(roof);
+    const g1 = box(2.5,4,0.1,glassMat); g1.position.set(-1.8,2,4); group.add(g1);
+    const g2 = box(2.5,4,0.1,glassMat); g2.position.set(1.8,2,4); group.add(g2);
+    const door = box(1,3.2,0.15,mat(hexColor,0.2,0.8)); door.position.set(0,1.6,4.05); group.add(door);
+    const sign = box(5,0.6,0.3,mat(hexColor,0.2,0.9)); sign.position.set(0,4.8,4.1); group.add(sign);
+
+    if (['bakery','cafe'].includes(category)) {
+        const ctr = box(4,1.2,1.5,mat(0x1a2235)); ctr.position.set(0,0.6,-1.5); group.add(ctr);
+        const ctrtop = box(4.1,0.1,1.6,accentMat); ctrtop.position.set(0,1.25,-1.5); group.add(ctrtop);
+        for (let i=0;i<3;i++) { const s=box(6,0.1,0.8,mat(0x243050)); s.position.set(0,1.5+i*1.2,-3.5); group.add(s); }
+    } else if (['fashion','lifestyle'].includes(category)) {
+        for (let i=-1;i<=1;i++) {
+            const r=box(0.08,1.8,2.5,mat(0x374151,0.3,0.8)); r.position.set(i*2.5,2.5,-1); group.add(r);
+            const b=box(2.4,0.08,0.08,mat(0x374151,0.3,0.8)); b.position.set(i*2.5,3.4,-1); group.add(b);
+            for (let j=-1;j<=1;j++) { const c=box(0.3,0.8,0.06,mat(hexColor,0.9,0)); c.position.set(i*2.5+j*0.5,3,-1); group.add(c); }
+        }
+    } else if (category === 'electronics') {
+        for (let i=-1;i<=1;i++) {
+            const t=box(2,0.9,1,mat(0x1a2235)); t.position.set(i*3,0.45,-1); group.add(t);
+            const tt=box(2.1,0.05,1.1,accentMat); tt.position.set(i*3,0.92,-1); group.add(tt);
+            const dev=box(0.8,0.05,0.6,mat(0x111827,0.1,0.9)); dev.position.set(i*3,0.97,-1); group.add(dev);
+        }
+    } else if (category === 'entertainment') {
+        for (let row=0;row<3;row++) for (let col=-2;col<=2;col++) {
+            const s=box(0.7,0.8,0.7,mat(hexColor,0.8,0.1)); s.position.set(col*0.9,0.5,-1.5-row*1.2); group.add(s);
+        }
+        const sc=box(5.5,2.5,0.1,mat(0xe2e8f0,0.9,0)); sc.position.set(0,2.8,-3.8); group.add(sc);
+    } else {
+        const sh=box(6.5,2.5,0.8,mat(0x1a2235)); sh.position.set(0,1.25,-3.2); group.add(sh);
+        for (let i=0;i<3;i++) { const s=box(6.6,0.06,0.8,mat(0x243050)); s.position.set(0,0.6+i*0.9,-3.2); group.add(s); }
+    }
+
+    const neonGeo = new THREE.BoxGeometry(7,0.05,0.05);
+    const neonMat = new THREE.MeshStandardMaterial({color:hexColor, emissive:hexColor, emissiveIntensity:2});
+    [[-2],[1]].forEach(([z]) => { const n=new THREE.Mesh(neonGeo,neonMat); n.position.set(0,4.85,z); group.add(n); });
+    scene3d.add(group);
+}
+
+function rotate3DLeft() { rotY -= 0.5; }
+function rotate3DRight() { rotY += 0.5; }
+function reset3DView() { rotY = 0; rotX = 0.3; }
+
+loadStore();
+</script>
+{% endblock %}
