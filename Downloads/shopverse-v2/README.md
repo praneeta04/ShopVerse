@@ -37,17 +37,7 @@ A complete full-stack web application built with Flask, MongoDB, Razorpay, Googl
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
-Copy `.env` and fill in your keys:
-```env
-MONGODB_URI=mongodb+srv://praneetaphani_db_user:phani@shopverse.6ufzvam.mongodb.net/
-RAZORPAY_KEY_ID=rzp_live_SKKoU0dKi4yqx3
-RAZORPAY_KEY_SECRET=iZjR3mZES8i6kOKn7EGO0Gy2
-GOOGLE_CLIENT_ID=AIzaSyCNxbtSOKe8XCkSk6lPHSfs0wt6Jx2MWDI
-ANTHROPIC_API_KEY=your_anthropic_key_here (optional, for AI chat)
-SECRET_KEY=your-random-secret-key
-PORT=5000
-```
+
 
 ### 3. Run Locally
 ```bash
