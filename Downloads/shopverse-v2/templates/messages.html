@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block title %}Messages{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+.msg-page{padding:80px 0 0;height:100vh;display:flex;flex-direction:column;}
+.msg-layout{flex:1;display:flex;overflow:hidden;max-width:1200px;margin:0 auto;width:100%;padding:20px;gap:20px;}
+/* Conversations list */
+.conv-panel{width:320px;flex-shrink:0;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;}
+.conv-header{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.conv-header h3{font-size:15px;font-weight:700;}
+.conv-search{padding:10px 14px;border-bottom:1px solid var(--border);}
+.conv-search input{width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;color:var(--text-1);font-size:13px;}
+.conv-list{flex:1;overflow-y:auto;}
+.conv-item{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;}
+.conv-item:hover,.conv-item.active{background:var(--bg-hover);}
+.conv-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;}
+.conv-info{flex:1;min-width:0;}
+.conv-name{font-size:13px;font-weight:600;}
+.conv-preview{font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.conv-time{font-size:10px;color:var(--text-3);}
+.conv-unread{min-width:18px;height:18px;border-radius:9px;background:var(--accent);color:white;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+/* Chat area */
+.chat-area{flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;}
+.chat-area-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.cha-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--green),#16a34a);display:flex;align-items:center;justify-content:center;font-size:16px;color:white;}
+.cha-info h3{font-size:14px;font-weight:700;}
+.cha-info p{font-size:11px;color:var(--green);}
+.chat-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;}
+.chat-bubble{max-width:70%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.5;}
+.chat-bubble.incoming{background:var(--bg-card2);border:1px solid var(--border);border-bottom-left-radius:4px;align-self:flex-start;}
+.chat-bubble.outgoing{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;border-bottom-right-radius:4px;align-self:flex-end;}
+.chat-bubble.system{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);color:var(--orange);font-size:12px;align-self:center;max-width:90%;text-align:center;border-radius:var(--radius);}
+.bubble-time{font-size:10px;opacity:.6;margin-top:4px;}
+.chat-input-wrap{padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;}
+.chat-input-wrap input{flex:1;background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text-1);font-size:13px;transition:border .2s;}
+.chat-input-wrap input:focus{border-color:var(--accent);}
+.send-btn{width:40px;height:40px;border-radius:var(--radius);background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;transition:all .2s;}
+.send-btn:hover{transform:scale(1.05);}
+/* Order status update buttons */
+.order-actions{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-card2);}
+.order-action-btn{padding:6px 14px;border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);transition:all .2s;}
+.order-action-btn:hover{border-color:var(--accent);color:var(--accent);}
+/* Empty state */
+.chat-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-3);}
+.chat-empty i{font-size:48px;margin-bottom:16px;opacity:.3;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="msg-page">
+  <div class="msg-layout">
+    <!-- Conversations -->
+    <div class="conv-panel">
+      <div class="conv-header">
+        <h3><i class="fas fa-comments" style="color:var(--accent);margin-right:6px;"></i> Messages</h3>
+        <span id="unreadBadge" style="display:none;"></span>
+      </div>
+      <div class="conv-search">
+        <input type="text" placeholder="Search conversations..." id="convSearch" oninput="filterConvs()">
+      </div>
+      <div class="conv-list" id="convList">
+        <div style="padding:20px;text-align:center;color:var(--text-3);font-size:13px;">
+          <i class="fas fa-spinner fa-spin"></i> Loading...
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="chat-area">
+      <div id="chatAreaContent" style="display:flex;flex-direction:column;height:100%;">
+        <div class="chat-empty" id="chatEmptyState">
+          <i class="fas fa-comment-dots"></i>
+          <p style="font-size:14px;font-weight:600;">Select a conversation</p>
+          <p style="font-size:12px;margin-top:4px;">Your order messages and updates appear here</p>
+        </div>
+        <div id="chatActive" style="display:none;flex-direction:column;height:100%;">
+          <div class="chat-area-header">
+            <div class="cha-avatar" id="chatAvatarEl">R</div>
+            <div class="cha-info">
+              <h3 id="chatNameEl">Retailer</h3>
+              <p id="chatStatusEl">Active now</p>
+            </div>
+            <div style="margin-left:auto;font-size:12px;color:var(--text-3);" id="chatOrderId"></div>
+          </div>
+          <div class="chat-body" id="chatBody"></div>
+          <div id="retailerOrderActions" style="display:none;" class="order-actions">
+            <span style="font-size:11px;color:var(--text-3);width:100%;margin-bottom:4px;">Update order status:</span>
+            <button class="order-action-btn" onclick="sendOrderStatus('confirmed')">✅ Confirmed</button>
+            <button class="order-action-btn" onclick="sendOrderStatus('preparing')">👨‍🍳 Preparing</button>
+            <button class="order-action-btn" onclick="sendOrderStatus('ready')">🎉 Ready</button>
+            <button class="order-action-btn" onclick="sendOrderStatus('delivered')">📦 Delivered</button>
+          </div>
+          <div class="chat-input-wrap">
+            <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendMsg()">
+            <button class="send-btn" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentUser = JSON.parse(localStorage.getItem('smartaisle_user') || 'null');
+let allMessages = [];
+let activeConv = null;
+let socket = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (!currentUser) { window.location.href = '/login'; return; }
+  initSocket();
+  loadMessages();
+});
+
+function initSocket() {
+  socket = io();
+  socket.emit('join', {room: currentUser.id});
+  socket.on('new_message', (msg) => {
+    allMessages.unshift(msg);
+    renderConversations();
+    if (activeConv && (msg.sender === activeConv.partner || msg.receiver === activeConv.partner)) {
+      appendBubble(msg);
+      scrollChat();
+    }
+    if (typeof addNotification === 'function') {
+      addNotification('💬 New Message', msg.message.substring(0,80));
+    }
+    updateMsgBadge();
+  });
+  socket.on('order_update', (data) => {
+    if (typeof addNotification === 'function') {
+      addNotification('📦 Order Update', data.message);
+    }
+  });
+}
+
+async function loadMessages() {
+  try {
+    const res = await fetch(`/api/messages/${currentUser.id}`);
+    const data = await res.json();
+    allMessages = data.messages || [];
+    renderConversations();
+  } catch(e) {
+    document.getElementById('convList').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-3);font-size:13px;">Could not load messages</div>';
+  }
+}
+
+function renderConversations() {
+  // Group messages by conversation partner
+  const convMap = {};
+  for (const msg of allMessages) {
+    const partner = msg.sender === currentUser.id ? msg.receiver : msg.sender;
+    if (!convMap[partner]) convMap[partner] = [];
+    convMap[partner].push(msg);
+  }
+  // Add demo conversations
+  if (Object.keys(convMap).length === 0) {
+    convMap['retailer'] = [{
+      id:'demo1', sender:'system', receiver:currentUser.id, type:'new_order',
+      message:'Welcome to ShopVerse! Your order messages will appear here.',
+      timestamp: new Date().toISOString(), read: true
+    }];
+  }
+  const list = document.getElementById('convList');
+  list.innerHTML = Object.entries(convMap).map(([partner, msgs]) => {
+    const latest = msgs[0];
+    const unread = msgs.filter(m => m.receiver === currentUser.id && !m.read).length;
+    const time = new Date(latest.timestamp).toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+    const name = partner === 'retailer' ? '🏪 Store Support' : (partner === 'system' ? '🤖 System' : `👤 ${partner.substring(0,8)}`);
+    return `<div class="conv-item ${activeConv?.partner===partner?'active':''}" onclick="openConv('${partner}','${name.replace(/'/g,"\\'")}')">
+      <div class="conv-avatar">${name[0]}</div>
+      <div class="conv-info">
+        <div class="conv-name">${name}</div>
+        <div class="conv-preview">${latest.message.substring(0,50)}...</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+        <div class="conv-time">${time}</div>
+        ${unread ? `<div class="conv-unread">${unread}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  updateMsgBadge();
+}
+
+function openConv(partner, name) {
+  activeConv = {partner, name};
+  const conv = document.querySelectorAll('.conv-item');
+  conv.forEach(c => c.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('chatEmptyState').style.display = 'none';
+  const chatActive = document.getElementById('chatActive');
+  chatActive.style.display = 'flex';
+  document.getElementById('chatAvatarEl').textContent = name[0];
+  document.getElementById('chatNameEl').textContent = name;
+  document.getElementById('chatStatusEl').textContent = 'Active';
+  const isRetailer = currentUser.role === 'retailer';
+  document.getElementById('retailerOrderActions').style.display = isRetailer ? 'flex' : 'none';
+  renderChatMessages(partner);
+  scrollChat();
+}
+
+function renderChatMessages(partner) {
+  const body = document.getElementById('chatBody');
+  const msgs = allMessages.filter(m => m.sender === partner || m.receiver === partner || m.sender === currentUser.id);
+  if (!msgs.length) {
+    body.innerHTML = '<div style="text-align:center;color:var(--text-3);font-size:13px;padding:20px;">No messages yet. Start a conversation!</div>';
+    return;
+  }
+  body.innerHTML = [...msgs].reverse().map(m => {
+    const isMe = m.sender === currentUser.id;
+    const isSystem = m.type === 'new_order' || m.sender === 'system';
+    const time = new Date(m.timestamp).toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+    return `<div class="chat-bubble ${isSystem?'system':isMe?'outgoing':'incoming'}">
+      <div style="white-space:pre-line;">${m.message}</div>
+      <div class="bubble-time">${time}</div>
+    </div>`;
+  }).join('');
+}
+
+function appendBubble(msg) {
+  const body = document.getElementById('chatBody');
+  const isMe = msg.sender === currentUser.id;
+  const isSystem = msg.type === 'new_order' || msg.sender === 'system';
+  const time = new Date(msg.timestamp).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  body.insertAdjacentHTML('beforeend',`
+    <div class="chat-bubble ${isSystem?'system':isMe?'outgoing':'incoming'}">
+      <div style="white-space:pre-line;">${msg.message}</div>
+      <div class="bubble-time">${time}</div>
+    </div>`);
+}
+
+function scrollChat() {
+  const body = document.getElementById('chatBody');
+  body.scrollTop = body.scrollHeight;
+}
+
+async function sendMsg() {
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text || !activeConv) return;
+  input.value = '';
+  const msg = {
+    sender: currentUser.id, receiver: activeConv.partner,
+    message: text, type: 'chat'
+  };
+  const res = await fetch('/api/messages/send', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(msg)
+  });
+  const data = await res.json();
+  if (data.success) {
+    allMessages.unshift(data.message);
+    appendBubble(data.message);
+    scrollChat();
+    renderConversations();
+  }
+}
+
+async function sendOrderStatus(status) {
+  if (!activeConv) return;
+  const orderId = document.getElementById('chatOrderId').textContent.replace('Order: ','');
+  const res = await fetch(`/api/orders/${orderId}/status`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({status})
+  });
+  const data = await res.json();
+  if (data.success) {
+    alert(`Order status updated to: ${status}`);
+  }
+}
+
+function filterConvs() {
+  const q = document.getElementById('convSearch').value.toLowerCase();
+  document.querySelectorAll('.conv-item').forEach(item => {
+    item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function updateMsgBadge() {
+  const unread = allMessages.filter(m => m.receiver === currentUser?.id && !m.read).length;
+  const navBadge = document.getElementById('msgNavBadge');
+  if (navBadge) {
+    navBadge.style.display = unread ? 'inline-flex' : 'none';
+    navBadge.textContent = unread;
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Sign In{% endblock %}
+{% block content %}
+
+<div class="auth-page">
+    <div class="auth-bg">
+        <div class="hero-orb orb1"></div>
+        <div class="hero-orb orb2"></div>
+        <div class="hero-grid"></div>
+    </div>
+    <div class="auth-container">
+        <div class="auth-left">
+            <a class="nav-brand auth-brand" href="/">
+                <div class="brand-icon"><i class="fas fa-shopping-bag"></i></div>
+                <span class="brand-text">SHOP<span class="brand-accent">VERSE</span></span>
+            </a>
+            <h2>Smart Shopping, Smarter Savings</h2>
+            <div class="auth-feature-list">
+                <div class="afl-item"><i class="fas fa-location-dot"></i> Real-time geofencing offers</div>
+                <div class="afl-item"><i class="fas fa-robot"></i> AI-powered recommendations</div>
+                <div class="afl-item"><i class="fas fa-tags"></i> Personalized discounts</div>
+                <div class="afl-item"><i class="fas fa-comments"></i> Real-time order messaging</div>
+                <div class="afl-item"><i class="fas fa-chart-line"></i> Track your savings</div>
+            </div>
+            <div class="auth-demo-creds">
+                <div class="demo-title">Demo Credentials</div>
+                <div class="demo-item" onclick="fillDemo('demo@smartaisle.com','demo123')">
+                    <i class="fas fa-user"></i>
+                    <div><div>User Account</div><div class="demo-sub">demo@smartaisle.com / demo123</div></div>
+                </div>
+                <div class="demo-item" onclick="fillDemo('retailer@smartaisle.com','retail123')">
+                    <i class="fas fa-store"></i>
+                    <div><div>Retailer Account</div><div class="demo-sub">retailer@smartaisle.com / retail123</div></div>
+                </div>
+            </div>
+        </div>
+        <div class="auth-card">
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="loginTab" onclick="switchTab('login')">Sign In</button>
+                <button class="auth-tab" id="signupTab" onclick="switchTab('signup')">Sign Up</button>
+            </div>
+
+            <!-- GOOGLE LOGIN -->
+            <div style="padding:0 0 16px;">
+                <div id="google-signin-btn" style="display:flex;justify-content:center;"></div>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:14px;margin-bottom:4px;">
+                    <div style="flex:1;height:1px;background:var(--border);"></div>
+                    <span style="font-size:11px;color:var(--text-3);white-space:nowrap;">or continue with email</span>
+                    <div style="flex:1;height:1px;background:var(--border);"></div>
+                </div>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="loginEmail" placeholder="you@example.com" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="loginPassword" placeholder="••••••••" required>
+                        <button type="button" class="toggle-pass" onclick="togglePass('loginPassword')"><i class="fas fa-eye"></i></button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="checkbox-label"><input type="checkbox"> Remember me</label>
+                    <a href="#" class="form-link">Forgot password?</a>
+                </div>
+                <button type="submit" class="btn-auth">
+                    <span id="loginText"><i class="fas fa-sign-in-alt"></i> Sign In</span>
+                    <span id="loginLoader" style="display:none"><i class="fas fa-spinner fa-spin"></i> Signing in...</span>
+                </button>
+                <div class="auth-error" id="loginError"></div>
+            </form>
+
+            <!-- SIGNUP FORM -->
+            <form id="signupForm" style="display:none" onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <div class="input-wrapper"><i class="fas fa-user"></i>
+                        <input type="text" id="signupName" placeholder="John Doe" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div class="input-wrapper"><i class="fas fa-envelope"></i>
+                        <input type="email" id="signupEmail" placeholder="you@example.com" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-wrapper"><i class="fas fa-lock"></i>
+                        <input type="password" id="signupPassword" placeholder="Min 6 characters" required minlength="6">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Account Type</label>
+                    <div class="input-wrapper"><i class="fas fa-id-card"></i>
+                        <select id="signupRole">
+                            <option value="user">Customer Account</option>
+                            <option value="retailer">Retailer Account</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn-auth">
+                    <span id="signupText"><i class="fas fa-user-plus"></i> Create Account</span>
+                    <span id="signupLoader" style="display:none"><i class="fas fa-spinner fa-spin"></i> Creating...</span>
+                </button>
+                <div class="auth-error" id="signupError"></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script>
+const GOOGLE_CLIENT_ID = "{{ google_client_id }}";
+
+window.onload = function() {
+    if (typeof google !== 'undefined' && GOOGLE_CLIENT_ID) {
+        google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleLogin
+        });
+        google.accounts.id.renderButton(
+            document.getElementById("google-signin-btn"),
+            { theme: "outline", size: "large", text: "signin_with_google", width: 320, logo_alignment: "left" }
+        );
+    }
+};
+
+async function handleGoogleLogin(response) {
+    try {
+        // Decode JWT payload
+        const payload = JSON.parse(atob(response.credential.split('.')[1]));
+        const googleUser = {
+            id: payload.sub,
+            email: payload.email,
+            name: payload.name,
+            picture: payload.picture
+        };
+        const res = await fetch('/api/auth/google', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({token: response.credential, user: googleUser})
+        });
+        const data = await res.json();
+        if (data.success) {
+            localStorage.setItem('smartaisle_user', JSON.stringify(data.user));
+            window.location.href = data.user.role === 'retailer' ? '/retailer' : '/map';
+        }
+    } catch(err) {
+        console.error('Google login error:', err);
+    }
+}
+
+function switchTab(tab) {
+    document.getElementById('loginForm').style.display = tab==='login' ? 'block' : 'none';
+    document.getElementById('signupForm').style.display = tab==='signup' ? 'block' : 'none';
+    document.getElementById('loginTab').classList.toggle('active', tab==='login');
+    document.getElementById('signupTab').classList.toggle('active', tab==='signup');
+}
+function fillDemo(email, pass) {
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('loginPassword').value = pass;
+    switchTab('login');
+}
+function togglePass(id) {
+    const inp = document.getElementById(id);
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+async function handleLogin(e) {
+    e.preventDefault();
+    document.getElementById('loginText').style.display='none';
+    document.getElementById('loginLoader').style.display='inline';
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    try {
+        const res = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+        const data = await res.json();
+        if (data.success) {
+            localStorage.setItem('smartaisle_user', JSON.stringify(data.user));
+            window.location.href = data.user.role==='retailer' ? '/retailer' : '/map';
+        } else {
+            const el=document.getElementById('loginError');
+            el.textContent=data.message; el.style.display='block';
+        }
+    } catch(err) {
+        document.getElementById('loginError').textContent='Connection error.';
+        document.getElementById('loginError').style.display='block';
+    }
+    document.getElementById('loginText').style.display='inline';
+    document.getElementById('loginLoader').style.display='none';
+}
+async function handleSignup(e) {
+    e.preventDefault();
+    document.getElementById('signupText').style.display='none';
+    document.getElementById('signupLoader').style.display='inline';
+    const name=document.getElementById('signupName').value;
+    const email=document.getElementById('signupEmail').value;
+    const password=document.getElementById('signupPassword').value;
+    const role=document.getElementById('signupRole').value;
+    try {
+        const res = await fetch('/api/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password,role})});
+        const data = await res.json();
+        if (data.success) {
+            localStorage.setItem('smartaisle_user', JSON.stringify(data.user));
+            window.location.href = data.user.role==='retailer' ? '/retailer' : '/map';
+        } else {
+            const el=document.getElementById('signupError');
+            el.textContent=data.message; el.style.display='block';
+        }
+    } catch(err) {
+        document.getElementById('signupError').textContent='Connection error.';
+        document.getElementById('signupError').style.display='block';
+    }
+    document.getElementById('signupText').style.display='inline';
+    document.getElementById('signupLoader').style.display='none';
+}
+</script>
+{% endblock %}

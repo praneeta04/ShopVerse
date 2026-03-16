@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+{% block title %}Explore{% endblock %}
+{% block extra_css %}
+<style>
+.explore-page{padding:80px 0 60px;min-height:100vh;}
+.explore-hero{text-align:center;padding:48px 24px 32px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.08));border-bottom:1px solid var(--border);}
+.explore-hero h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(28px,5vw,48px);font-weight:800;letter-spacing:-1px;margin-bottom:12px;}
+.explore-hero p{color:var(--text-2);font-size:16px;max-width:500px;margin:0 auto 28px;}
+.explore-search-wrap{max-width:640px;margin:0 auto;position:relative;}
+.explore-search-wrap input{width:100%;background:var(--bg-card);border:2px solid var(--border-lg);border-radius:var(--radius-xl);padding:16px 60px 16px 24px;font-size:16px;color:var(--text-1);transition:border .2s;}
+.explore-search-wrap input:focus{border-color:var(--accent);}
+.explore-search-wrap .search-go{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:var(--radius);background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;font-size:16px;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;transition:all .2s;}
+.explore-search-wrap .search-go:hover{transform:translateY(-50%) scale(1.05);}
+.exp-search-dropdown{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--bg-card);border:1px solid var(--border-lg);border-radius:var(--radius-lg);z-index:9999;max-height:260px;overflow-y:auto;display:none;box-shadow:var(--shadow-lg);}
+.exp-search-dropdown.open{display:block;}
+.exp-sd-item{padding:12px 18px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);transition:background .15s;}
+.exp-sd-item:hover{background:var(--bg-hover);}
+.exp-sd-item i{color:var(--accent);width:16px;}
+/* Category chips */
+.cat-chips-wrap{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:20px 24px;border-bottom:1px solid var(--border);background:var(--bg-card);}
+.cat-chip{display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--radius-xl);border:1px solid var(--border-lg);background:var(--bg-card2);color:var(--text-2);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;}
+.cat-chip:hover,.cat-chip.active{border-color:var(--accent);background:rgba(99,102,241,0.12);color:var(--accent);}
+.cat-chip span{font-size:17px;}
+/* Main explore layout */
+.explore-body{max-width:1400px;margin:0 auto;padding:32px 24px;}
+.explore-status{text-align:center;padding:16px;color:var(--text-2);font-size:14px;margin-bottom:24px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.explore-location-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--radius-xl);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:var(--green);font-size:12px;font-weight:600;}
+/* Results sections */
+.exp-section{margin-bottom:40px;}
+.exp-section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.exp-section-header h2{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.exp-section-badge{font-size:12px;padding:3px 10px;border-radius:var(--radius-xl);background:rgba(99,102,241,0.12);color:var(--accent);font-weight:600;}
+/* Store cards */
+.exp-stores-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.exp-store-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;cursor:pointer;transition:all .2s;}
+.exp-store-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 30px rgba(99,102,241,0.15);}
+.esc-header{height:80px;display:flex;align-items:center;justify-content:center;font-size:32px;position:relative;overflow:hidden;}
+.esc-body{padding:16px;}
+.esc-name{font-size:15px;font-weight:700;margin-bottom:4px;}
+.esc-meta{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-3);}
+.esc-meta .rating{display:flex;align-items:center;gap:4px;color:var(--orange);}
+.esc-meta .distance{display:flex;align-items:center;gap:4px;}
+.esc-mall{font-size:11px;color:var(--accent);margin-top:4px;font-weight:600;}
+.esc-offers{margin-top:10px;}
+.esc-offer-chip{display:inline-block;padding:3px 10px;border-radius:var(--radius-xl);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);color:var(--green);font-size:11px;margin:2px 2px 2px 0;}
+/* Offers grid */
+.exp-offers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.exp-offer-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;transition:all .2s;}
+.exp-offer-card:hover{border-color:var(--green);transform:translateY(-1px);}
+.eoc-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.eoc-emoji{font-size:28px;}
+.eoc-info{flex:1;}
+.eoc-title{font-size:14px;font-weight:700;}
+.eoc-store{font-size:11px;color:var(--text-3);}
+.eoc-badge{font-size:15px;font-weight:800;color:var(--green);}
+.eoc-desc{font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.5;}
+.eoc-footer{display:flex;align-items:center;justify-content:space-between;}
+.eoc-price{font-size:13px;color:var(--text-2);}
+.eoc-price s{color:var(--text-3);}
+.eoc-price strong{color:var(--text-1);font-size:15px;}
+.btn-claim-sm{padding:8px 16px;border-radius:var(--radius);background:linear-gradient(135deg,var(--green),#16a34a);color:white;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all .2s;}
+.btn-claim-sm:hover{transform:scale(1.05);}
+/* Nearby notification banner */
+.nearby-banner{background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.15));border:1px solid rgba(99,102,241,0.3);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;gap:12px;display:none;}
+.nearby-banner.show{display:flex;}
+.nb-icon{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:white;font-size:16px;flex-shrink:0;}
+.nb-content{flex:1;}
+.nb-title{font-size:14px;font-weight:600;}
+.nb-msg{font-size:12px;color:var(--text-2);}
+/* Loading state */
+.exp-loading{text-align:center;padding:60px;color:var(--text-3);}
+.exp-loading i{font-size:32px;margin-bottom:12px;display:block;color:var(--accent);}
+/* Empty */
+.exp-empty{text-align:center;padding:48px;color:var(--text-3);}
+.exp-empty i{font-size:40px;margin-bottom:12px;display:block;opacity:.3;}
+/* Recommendations strip */
+.reco-strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin;}
+.reco-card{min-width:220px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;flex-shrink:0;cursor:pointer;transition:all .2s;}
+.reco-card:hover{border-color:var(--accent);}
+.reco-emoji{font-size:28px;margin-bottom:8px;}
+.reco-name{font-size:13px;font-weight:600;}
+.reco-meta{font-size:11px;color:var(--text-3);margin-top:2px;}
+.reco-offer{font-size:11px;color:var(--green);margin-top:4px;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="explore-page">
+  <div class="explore-hero">
+    <div class="explore-hero-badge" style="display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);font-size:12px;font-weight:600;color:var(--accent);margin-bottom:16px;">
+      <i class="fas fa-compass"></i> Location-Based Discovery
+    </div>
+    <h1>Explore Stores <span class="gradient-text">Near You</span></h1>
+    <p>Type any place — Ameerpet, Banjara Hills, AMB Mall — to discover nearby stores, offers & malls.</p>
+    <div class="explore-search-wrap">
+      <input type="text" id="exploreSearch" placeholder="Search any location — Ameerpet, Banjara Hills, Madhapur..." 
+             oninput="onExploreInput()" onkeypress="if(event.key==='Enter')doExploreSearch()">
+      <button class="search-go" onclick="doExploreSearch()"><i class="fas fa-search"></i></button>
+      <div class="exp-search-dropdown" id="expSearchDropdown"></div>
+    </div>
+  </div>
+
+  <!-- Category Chips -->
+  <div class="cat-chips-wrap">
+    <div class="cat-chip active" data-cat="all" onclick="selectCategory(this,'all')"><span>🏬</span> All</div>
+    <div class="cat-chip" data-cat="bakery" onclick="selectCategory(this,'bakery')"><span>🥐</span> Bakery</div>
+    <div class="cat-chip" data-cat="cafe" onclick="selectCategory(this,'cafe')"><span>☕</span> Cafe</div>
+    <div class="cat-chip" data-cat="restaurant" onclick="selectCategory(this,'restaurant')"><span>🍛</span> Restaurant</div>
+    <div class="cat-chip" data-cat="fashion" onclick="selectCategory(this,'fashion')"><span>👗</span> Clothing</div>
+    <div class="cat-chip" data-cat="electronics" onclick="selectCategory(this,'electronics')"><span>📱</span> Electronics</div>
+    <div class="cat-chip" data-cat="beauty" onclick="selectCategory(this,'beauty')"><span>💄</span> Beauty</div>
+    <div class="cat-chip" data-cat="entertainment" onclick="selectCategory(this,'entertainment')"><span>🎬</span> Cinema</div>
+    <div class="cat-chip" data-cat="lifestyle" onclick="selectCategory(this,'lifestyle')"><span>🏮</span> Lifestyle</div>
+  </div>
+
+  <div class="explore-body">
+    <!-- Nearby notification banner -->
+    <div class="nearby-banner" id="nearbyBanner">
+      <div class="nb-icon"><i class="fas fa-location-dot"></i></div>
+      <div class="nb-content">
+        <div class="nb-title" id="nearbyBannerTitle">You're near a store!</div>
+        <div class="nb-msg" id="nearbyBannerMsg">Check out nearby deals.</div>
+      </div>
+      <button onclick="document.getElementById('nearbyBanner').classList.remove('show')" style="background:none;border:none;color:var(--text-3);padding:4px;"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Status -->
+    <div class="explore-status" id="exploreStatus">
+      <i class="fas fa-location-crosshairs" style="color:var(--accent)"></i>
+      Detecting your location...
+    </div>
+
+    <!-- AI Recommendations -->
+    <div class="exp-section" id="recoSection" style="display:none;">
+      <div class="exp-section-header">
+        <h2><i class="fas fa-robot" style="color:var(--accent)"></i> Recommended For You</h2>
+        <span class="exp-section-badge">AI-Powered</span>
+      </div>
+      <div class="reco-strip" id="recoStrip"></div>
+    </div>
+
+    <!-- Loading -->
+    <div class="exp-loading" id="exploreLoading" style="display:none;">
+      <i class="fas fa-spinner fa-spin"></i>
+      <div>Discovering stores near you...</div>
+    </div>
+
+    <!-- Nearby Stores -->
+    <div class="exp-section" id="storesSection" style="display:none;">
+      <div class="exp-section-header">
+        <h2><i class="fas fa-store" style="color:var(--green)"></i> Nearby Stores</h2>
+        <span class="exp-section-badge" id="storesCount">0 stores</span>
+      </div>
+      <div class="exp-stores-grid" id="storesGrid"></div>
+    </div>
+
+    <!-- Active Offers -->
+    <div class="exp-section" id="offersSection" style="display:none;">
+      <div class="exp-section-header">
+        <h2><i class="fas fa-tags" style="color:var(--orange)"></i> Active Offers</h2>
+        <span class="exp-section-badge" id="offersCount">0 offers</span>
+      </div>
+      <div class="exp-offers-grid" id="offersGrid"></div>
+    </div>
+
+    <!-- Nearby Malls -->
+    <div class="exp-section" id="mallsSection" style="display:none;">
+      <div class="exp-section-header">
+        <h2><i class="fas fa-building" style="color:var(--blue)"></i> Nearby Malls</h2>
+      </div>
+      <div id="mallsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
+    </div>
+
+    <!-- Default intro -->
+    <div id="exploreDefault">
+      <div style="text-align:center;padding:60px 24px;">
+        <div style="font-size:60px;margin-bottom:20px;">🗺️</div>
+        <h3 style="font-size:22px;font-weight:700;margin-bottom:8px;">Discover Any Location</h3>
+        <p style="color:var(--text-2);max-width:400px;margin:0 auto 24px;">Search any place in Hyderabad to see nearby stores, malls, and exclusive offers.</p>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button onclick="quickSearch('Ameerpet')" class="cat-chip">📍 Ameerpet</button>
+          <button onclick="quickSearch('AMB Mall')" class="cat-chip">🏬 AMB Mall</button>
+          <button onclick="quickSearch('Banjara Hills')" class="cat-chip">📍 Banjara Hills</button>
+          <button onclick="quickSearch('Madhapur')" class="cat-chip">📍 Madhapur</button>
+          <button onclick="useMyLocation()" class="cat-chip" style="border-color:var(--green);color:var(--green);">📱 Use My Location</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentLat = null, currentLng = null, currentCategory = 'all';
+let searchTimeout = null;
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  const lat = sessionStorage.getItem('userLat');
+  const lng = sessionStorage.getItem('userLng');
+  if (lat && lng) {
+    currentLat = parseFloat(lat); currentLng = parseFloat(lng);
+    showStatus('Using your detected location', true);
+    loadExploreData(currentLat, currentLng);
+  } else {
+    navigator.geolocation?.getCurrentPosition(pos => {
+      currentLat = pos.coords.latitude; currentLng = pos.coords.longitude;
+      sessionStorage.setItem('userLat', currentLat); sessionStorage.setItem('userLng', currentLng);
+      showStatus('Using your GPS location', true);
+      loadExploreData(currentLat, currentLng);
+    }, () => {
+      showStatus('Enter a location above to explore', false);
+    }, {enableHighAccuracy: true, timeout: 8000});
+  }
+  loadRecommendations();
+});
+
+function showStatus(msg, ok) {
+  const el = document.getElementById('exploreStatus');
+  const icon = ok ? 'fa-location-dot' : 'fa-magnifying-glass';
+  const color = ok ? 'var(--green)' : 'var(--accent)';
+  el.innerHTML = `<i class="fas ${icon}" style="color:${color}"></i> ${msg}`;
+}
+
+function quickSearch(place) {
+  document.getElementById('exploreSearch').value = place;
+  doExploreSearch();
+}
+
+function useMyLocation() {
+  navigator.geolocation?.getCurrentPosition(pos => {
+    currentLat = pos.coords.latitude; currentLng = pos.coords.longitude;
+    sessionStorage.setItem('userLat', currentLat); sessionStorage.setItem('userLng', currentLng);
+    showStatus('Using your GPS location', true);
+    loadExploreData(currentLat, currentLng);
+  }, () => alert('Could not detect location. Please enter manually.'));
+}
+
+async function onExploreInput() {
+  const q = document.getElementById('exploreSearch').value.trim();
+  if (!q) { document.getElementById('expSearchDropdown').classList.remove('open'); return; }
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(async () => {
+    const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    const dd = document.getElementById('expSearchDropdown');
+    if (data.locations?.length) {
+      dd.innerHTML = data.locations.map(l => `
+        <div class="exp-sd-item" onclick="selectLocation(${l.lat},${l.lng},'${l.display_name.replace(/'/g,"\\'")}')">
+          <i class="fas fa-location-dot"></i>
+          <div>
+            <div style="font-size:13px;font-weight:600;">${l.display_name.split(',').slice(0,2).join(',')}</div>
+            <div style="font-size:11px;color:var(--text-3);">${l.display_name.split(',').slice(2,4).join(',')}</div>
+          </div>
+        </div>`).join('');
+      dd.classList.add('open');
+    } else {
+      dd.classList.remove('open');
+    }
+  }, 400);
+}
+
+function selectLocation(lat, lng, name) {
+  currentLat = lat; currentLng = lng;
+  document.getElementById('exploreSearch').value = name.split(',').slice(0,2).join(',');
+  document.getElementById('expSearchDropdown').classList.remove('open');
+  showStatus(`Showing results near: ${name.split(',')[0]}`, true);
+  loadExploreData(lat, lng);
+}
+
+async function doExploreSearch() {
+  const q = document.getElementById('exploreSearch').value.trim();
+  if (!q) return;
+  document.getElementById('expSearchDropdown').classList.remove('open');
+  showLoading(true);
+  const res = await fetch(`/api/geocode?q=${encodeURIComponent(q + ' Hyderabad')}`);
+  const data = await res.json();
+  showLoading(false);
+  if (data.locations?.length) {
+    const l = data.locations[0];
+    currentLat = l.lat; currentLng = l.lng;
+    showStatus(`Results near: ${q}`, true);
+    loadExploreData(l.lat, l.lng);
+  } else {
+    alert('Location not found. Try a different search.');
+  }
+}
+
+async function loadExploreData(lat, lng, radius = 5000) {
+  showLoading(true);
+  document.getElementById('exploreDefault').style.display = 'none';
+  try {
+    const cat = currentCategory !== 'all' ? currentCategory : undefined;
+    const body = {lat, lng, radius};
+    if (cat) body.category = cat;
+    const [storesRes, offersRes, mallsRes] = await Promise.all([
+      fetch('/api/stores/nearby', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}),
+      fetch('/api/offers/all'),
+      fetch('/api/stores/malls')
+    ]);
+    const [storesData, offersData, mallsData] = await Promise.all([storesRes.json(), offersRes.json(), mallsRes.json()]);
+    renderStores(storesData.stores || []);
+    renderOffers(offersData.offers || [], storesData.stores || []);
+    renderMalls(mallsData.malls || [], lat, lng);
+    checkNearbyNotification(storesData.stores || []);
+  } catch(e) {
+    console.error(e);
+  }
+  showLoading(false);
+}
+
+function showLoading(show) {
+  document.getElementById('exploreLoading').style.display = show ? 'block' : 'none';
+}
+
+function renderStores(stores) {
+  const section = document.getElementById('storesSection');
+  const grid = document.getElementById('storesGrid');
+  const count = document.getElementById('storesCount');
+  const cat = currentCategory;
+  const filtered = cat === 'all' ? stores : stores.filter(s => s.category === cat);
+  count.textContent = `${filtered.length} stores`;
+
+  const catEmojis = {bakery:'🥐',cafe:'☕',supermarket:'🛒',restaurant:'🍛',
+                    convenience_store:'🏪',fashion:'👗',beauty:'💄',entertainment:'🎬',electronics:'📱',lifestyle:'🏮'};
+  const catColors = {bakery:'#f59e0b',cafe:'#8b5cf6',restaurant:'#ef4444',fashion:'#000',
+                    electronics:'#6b7280',beauty:'#ec4899',entertainment:'#7c3aed',lifestyle:'#14b8a6'};
+
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="exp-empty"><i class="fas fa-store-slash"></i><p>No stores found in this area</p></div>';
+  } else {
+    grid.innerHTML = filtered.map(s => {
+      const emoji = catEmojis[s.category] || '🏬';
+      const color = catColors[s.category] || '#6366f1';
+      const dist = s.distance < 1000 ? `${s.distance}m` : `${(s.distance/1000).toFixed(1)}km`;
+      return `
+        <div class="exp-store-card" onclick="location.href='/store/${s.id}'">
+          <div class="esc-header" style="background:linear-gradient(135deg,${color}22,${color}11);">
+            <span style="font-size:40px">${emoji}</span>
+            ${s.in_geofence ? '<span style="position:absolute;top:8px;right:8px;background:rgba(34,197,94,0.2);border:1px solid var(--green);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;color:var(--green);">NEAR YOU</span>' : ''}
+          </div>
+          <div class="esc-body">
+            <div class="esc-name">${s.name}</div>
+            <div class="esc-meta">
+              <span class="rating"><i class="fas fa-star"></i> ${s.rating}</span>
+              <span class="distance"><i class="fas fa-location-dot"></i> ${dist}</span>
+              <span>${s.category.replace(/_/g,' ')}</span>
+            </div>
+            ${s.mall ? `<div class="esc-mall"><i class="fas fa-building"></i> ${s.mall} ${s.floor ? '· '+s.floor : ''}</div>` : ''}
+            <div class="esc-offers" id="esc-offers-${s.id}"></div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+  section.style.display = 'block';
+
+  // Load offers for each store card
+  filtered.forEach(async s => {
+    const res = await fetch(`/api/stores/${s.id}?lat=${currentLat}&lng=${currentLng}`);
+    const data = await res.json();
+    const el = document.getElementById(`esc-offers-${s.id}`);
+    if (el && data.store?.offers?.length) {
+      el.innerHTML = data.store.offers.slice(0,2).map(o =>
+        `<span class="esc-offer-chip">🏷️ ${o.discount_pct}% off ${o.product}</span>`
+      ).join('');
+    }
+  });
+}
+
+function renderOffers(offers, nearbyStores) {
+  const section = document.getElementById('offersSection');
+  const grid = document.getElementById('offersGrid');
+  const count = document.getElementById('offersCount');
+  const nearbyIds = new Set(nearbyStores.map(s => s.id));
+  // Filter to nearby stores only, or show all if no nearby
+  let relevant = offers.filter(o => nearbyIds.has(o.store_id));
+  if (!relevant.length) relevant = offers.slice(0, 12);
+  if (currentCategory !== 'all') {
+    const cat = currentCategory;
+    const catStoreIds = new Set(nearbyStores.filter(s=>s.category===cat).map(s=>s.id));
+    relevant = relevant.filter(o => catStoreIds.has(o.store_id));
+  }
+  count.textContent = `${relevant.length} offers`;
+  if (!relevant.length) {
+    grid.innerHTML = '<div class="exp-empty"><i class="fas fa-tags"></i><p>No active offers found</p></div>';
+  } else {
+    grid.innerHTML = relevant.slice(0,12).map(o => `
+      <div class="exp-offer-card">
+        <div class="eoc-header">
+          <div class="eoc-emoji">${o.product_emoji || '🏷️'}</div>
+          <div class="eoc-info">
+            <div class="eoc-title">${o.title}</div>
+            <div class="eoc-store">${o.store_name}</div>
+          </div>
+          <div class="eoc-badge">-${o.discount_pct}%</div>
+        </div>
+        <div class="eoc-desc">${o.description}</div>
+        <div class="eoc-footer">
+          <div class="eoc-price"><s>₹${o.original_price}</s> → <strong>₹${o.final_price}</strong></div>
+          <button class="btn-claim-sm" onclick="event.stopPropagation();claimOffer('${o.id}','${o.store_id}',this)">
+            <i class="fas fa-ticket"></i> Claim
+          </button>
+        </div>
+      </div>`).join('');
+  }
+  section.style.display = 'block';
+}
+
+function renderMalls(malls, lat, lng) {
+  const section = document.getElementById('mallsSection');
+  const grid = document.getElementById('mallsGrid');
+  if (!malls.length) { section.style.display='none'; return; }
+  grid.innerHTML = malls.map(m => `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;cursor:pointer;transition:all .2s;"
+         onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
+         onclick="location.href='/map?mall=${encodeURIComponent(m.name)}'">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(99,102,241,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;">🏬</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;">${m.name}</div>
+          <div style="font-size:11px;color:var(--text-3);">${m.stores.length} stores</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+        ${m.stores.slice(0,4).map(s=>`<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg-card2);color:var(--text-2);">${s.name}</span>`).join('')}
+        ${m.stores.length>4 ? `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg-card2);color:var(--text-3);">+${m.stores.length-4} more</span>` : ''}
+      </div>
+    </div>`).join('');
+  section.style.display = 'block';
+}
+
+function checkNearbyNotification(stores) {
+  const near = stores.filter(s => s.in_geofence);
+  if (near.length) {
+    document.getElementById('nearbyBannerTitle').textContent = `You're near ${near[0].name}!`;
+    document.getElementById('nearbyBannerMsg').textContent = `${near.length} store${near.length>1?'s':''} in your vicinity with active offers. Check them out!`;
+    document.getElementById('nearbyBanner').classList.add('show');
+  }
+}
+
+function selectCategory(el, cat) {
+  document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  currentCategory = cat;
+  if (currentLat) loadExploreData(currentLat, currentLng);
+}
+
+async function loadRecommendations() {
+  const user = JSON.parse(localStorage.getItem('smartaisle_user') || 'null');
+  if (!user) return;
+  const lat = currentLat || parseFloat(sessionStorage.getItem('userLat')) || 17.4401;
+  const lng = currentLng || parseFloat(sessionStorage.getItem('userLng')) || 78.4987;
+  try {
+    const res = await fetch('/api/recommendations', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({user_id:user.id, lat, lng})
+    });
+    const data = await res.json();
+    if (data.recommendations?.length) {
+      const strip = document.getElementById('recoStrip');
+      strip.innerHTML = data.recommendations.map(r => `
+        <div class="reco-card" onclick="location.href='/store/${r.store_id}'">
+          <div class="reco-emoji">${{bakery:'🥐',cafe:'☕',restaurant:'🍛',fashion:'👗',electronics:'📱',beauty:'💄',entertainment:'🎬',lifestyle:'🏮'}[r.category]||'🏬'}</div>
+          <div class="reco-name">${r.store_name}</div>
+          <div class="reco-meta">⭐ ${r.rating} · ${r.distance < 1000 ? r.distance+'m' : (r.distance/1000).toFixed(1)+'km'}</div>
+          <div class="reco-offer">🏷️ ${r.top_offer.discount_pct}% off today</div>
+          <div style="font-size:10px;color:var(--text-3);margin-top:4px;">${r.reason}</div>
+        </div>`).join('');
+      document.getElementById('recoSection').style.display = 'block';
+    }
+  } catch(e) {}
+}
+
+async function claimOffer(offerId, storeId, btn) {
+  const user = JSON.parse(localStorage.getItem('smartaisle_user') || 'null');
+  btn.disabled = true; btn.textContent = '...';
+  const res = await fetch('/api/offers/claim', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({offer_id:offerId, store_id:storeId, user_id:user?.id||'guest'})
+  });
+  const data = await res.json();
+  if (data.success) {
+    btn.innerHTML = '<i class="fas fa-check"></i> Claimed!';
+    btn.style.background = '#22c55e';
+    // Save to local storage for checkout
+    const claimed = JSON.parse(localStorage.getItem('claimedOffers') || '[]');
+    claimed.push(data.offer);
+    localStorage.setItem('claimedOffers', JSON.stringify(claimed));
+    if (typeof addNotification === 'function') {
+      addNotification('🎟️ Offer Claimed!', `${data.offer.title} saved for checkout.`);
+    }
+  } else {
+    btn.textContent = 'Error'; btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

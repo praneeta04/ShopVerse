@@ -1,0 +1,864 @@
+{% extends "base.html" %}
+{% block title %}Retailer Dashboard{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.retailer-page{padding:80px 0 0;height:100vh;display:flex;flex-direction:column;}
+.retailer-body{display:flex;flex:1;overflow:hidden;}
+/* Sidebar */
+.retailer-sidebar{width:220px;flex-shrink:0;background:var(--bg-card);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px;gap:4px;}
+.rs-tab{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;border:none;background:none;color:var(--text-2);font-size:13px;font-weight:500;cursor:pointer;text-align:left;width:100%;transition:all .15s;}
+.rs-tab:hover,.rs-tab.active{background:rgba(99,102,241,0.12);color:var(--accent);}
+.rs-tab.active{font-weight:700;}
+.rs-tab i{width:16px;text-align:center;}
+.rs-divider{height:1px;background:var(--border);margin:8px 4px;}
+.rs-store-info{margin-top:auto;padding:12px;background:var(--bg-card2);border-radius:10px;border:1px solid var(--border);}
+.rs-store-name{font-size:12px;font-weight:600;}
+.rs-store-meta{font-size:10px;color:var(--text-3);margin-top:2px;}
+.rs-online-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:4px;}
+/* Main area */
+.retailer-main{flex:1;overflow-y:auto;padding:24px;}
+.r-section{display:none;}
+.r-section.active{display:block;}
+/* KPI Cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.kpi-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;display:flex;align-items:center;gap:14px;transition:all .2s;position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;inset:0;opacity:.04;background:var(--kpi-color);}
+.kpi-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3);}
+.kpi-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.kpi-num{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:800;letter-spacing:-.5px;}
+.kpi-label{font-size:12px;color:var(--text-3);margin-top:2px;}
+.kpi-trend{font-size:11px;margin-top:6px;display:flex;align-items:center;gap:4px;}
+.kpi-trend.up{color:var(--green);}.kpi-trend.down{color:var(--red);}
+/* Charts grid */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px;}
+.chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;}
+.chart-card.full{grid-column:span 2;}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.chart-header h3{font-size:14px;font-weight:700;}
+.chart-legend{display:flex;gap:12px;font-size:11px;color:var(--text-2);}
+.cl-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px;}
+/* Realtime row */
+.realtime-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+.rt-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;}
+.rt-title{font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+.rt-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.rt-item:last-child{border:none;}
+.rt-emoji{font-size:18px;width:24px;}
+.rt-info{flex:1;}
+.rt-name{font-size:12px;font-weight:600;}
+.rt-meta{font-size:10px;color:var(--text-3);}
+.rt-val{font-size:13px;font-weight:700;color:var(--accent);}
+/* Stores table */
+.stores-table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;}
+.st-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.st-header h3{font-size:15px;font-weight:700;}
+.stores-table{width:100%;border-collapse:collapse;}
+.stores-table th{padding:10px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);text-align:left;background:var(--bg-card2);border-bottom:1px solid var(--border);}
+.stores-table td{padding:12px 16px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.stores-table tr:last-child td{border:none;}
+.stores-table tr:hover td{background:var(--bg-hover);}
+.status-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;}
+.status-pill.active{background:rgba(34,197,94,.12);color:var(--green);}
+.status-pill.inactive{background:rgba(100,116,139,.12);color:var(--text-3);}
+.status-dot2{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.offer-mini{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:rgba(99,102,241,.12);color:var(--accent);}
+/* Heatmap */
+.heatmap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.hm-cell{aspect-ratio:1;border-radius:3px;cursor:pointer;transition:all .15s;position:relative;}
+.hm-cell:hover::after{content:attr(data-tip);position:absolute;bottom:110%;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border-lg);padding:4px 8px;border-radius:5px;font-size:10px;white-space:nowrap;z-index:10;}
+.hm-label{font-size:9px;color:var(--text-3);text-align:center;margin-bottom:4px;}
+/* Form */
+.form-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;max-width:600px;}
+.form-card h3{font-size:16px;font-weight:700;margin-bottom:20px;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:6px;}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-1);font-size:13px;font-family:inherit;transition:border .2s;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent);outline:none;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+/* Customers tab */
+.customer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+.customer-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;transition:all .2s;}
+.customer-card:hover{border-color:var(--accent);}
+.cust-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;margin-bottom:10px;}
+.cust-name{font-size:14px;font-weight:600;}
+.cust-email{font-size:11px;color:var(--text-3);margin-top:2px;}
+.cust-stats{display:flex;gap:10px;margin-top:10px;}
+.cust-stat{font-size:11px;color:var(--text-2);background:var(--bg-card2);padding:4px 8px;border-radius:5px;}
+.tier-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-top:6px;}
+.tier-gold{background:rgba(245,158,11,.15);color:var(--orange);}
+.tier-silver{background:rgba(148,163,184,.15);color:var(--text-2);}
+.tier-bronze{background:rgba(180,120,60,.15);color:#b47c3c;}
+/* Manage offers */
+.offers-manager{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+.offer-manage-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;}
+.omc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.omc-store{font-size:12px;font-weight:600;color:var(--accent);}
+.omc-toggle{position:relative;width:36px;height:20px;cursor:pointer;}
+.omc-toggle input{opacity:0;width:0;height:0;}
+.omc-slider{position:absolute;inset:0;background:#374151;border-radius:20px;transition:.3s;}
+.omc-toggle input:checked+.omc-slider{background:var(--green);}
+.omc-slider:before{content:'';position:absolute;width:14px;height:14px;background:white;border-radius:50%;left:3px;top:3px;transition:.3s;}
+.omc-toggle input:checked+.omc-slider:before{transform:translateX(16px);}
+.omc-title{font-size:14px;font-weight:700;margin-bottom:4px;}
+.omc-disc{font-size:22px;font-weight:800;color:var(--accent);margin:8px 0;}
+.omc-meta{font-size:11px;color:var(--text-3);}
+.omc-stats{display:flex;gap:10px;margin-top:10px;}
+.omc-stat{flex:1;background:var(--bg-card2);border-radius:7px;padding:8px;text-align:center;}
+.omc-stat-num{font-size:14px;font-weight:700;}
+.omc-stat-label{font-size:9px;color:var(--text-3);}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="retailer-page">
+  <div class="retailer-body">
+    <!-- SIDEBAR -->
+    <div class="retailer-sidebar">
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 4px 14px;border-bottom:1px solid var(--border);margin-bottom:8px;">
+        <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--green),#059669);display:flex;align-items:center;justify-content:center;font-size:14px;"><i class="fas fa-store" style="color:white"></i></div>
+        <div><div style="font-size:13px;font-weight:700;">Retailer Hub</div><div style="font-size:10px;color:var(--text-3);">Management Portal</div></div>
+      </div>
+      <button class="rs-tab active" onclick="switchTab(this,'analytics')"><i class="fas fa-chart-line"></i> Analytics</button>
+      <button class="rs-tab" onclick="switchTab(this,'realtime')"><i class="fas fa-bolt"></i> Live Activity</button>
+      <button class="rs-tab" onclick="switchTab(this,'stores')"><i class="fas fa-store"></i> My Stores</button>
+      <button class="rs-tab" onclick="switchTab(this,'offers')"><i class="fas fa-tags"></i> Manage Offers</button>
+      <button class="rs-tab" onclick="switchTab(this,'customers')"><i class="fas fa-users"></i> Customers</button>
+      <button class="rs-tab" onclick="switchTab(this,'orders')"><i class="fas fa-shopping-cart"></i> Orders <span id="ordersBadge" style="background:var(--red);color:white;padding:1px 5px;border-radius:8px;font-size:9px;margin-left:4px;display:none">0</span></button>
+      <button class="rs-tab" onclick="switchTab(this,'messages')"><i class="fas fa-comments"></i> Messages</button>
+      <button class="rs-tab" onclick="switchTab(this,'products')"><i class="fas fa-box"></i> Products</button>
+      <div class="rs-divider"></div>
+      <button class="rs-tab" onclick="switchTab(this,'register')"><i class="fas fa-plus-circle"></i> Register Store</button>
+      <div style="margin-top:auto;"></div>
+      <div class="rs-store-info">
+        <div class="rs-store-name"><span class="rs-online-dot"></span>Store Manager</div>
+        <div class="rs-store-meta">13 stores · All active</div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="retailer-main">
+
+      <!-- ANALYTICS TAB -->
+      <div class="r-section active" id="tab-analytics">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div><div style="font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;">Analytics Overview</div><div style="font-size:12px;color:var(--text-3);margin-top:2px;">Last 7 days performance</div></div>
+          <div style="display:flex;gap:8px;">
+            <button style="padding:7px 14px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-2);font-size:12px;cursor:pointer;">7 Days</button>
+            <button style="padding:7px 14px;border-radius:8px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:var(--accent);font-size:12px;cursor:pointer;">Export</button>
+          </div>
+        </div>
+        <!-- KPIs -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-color:#3b82f6">
+            <div class="kpi-icon" style="background:rgba(59,130,246,.15);color:#3b82f6"><i class="fas fa-circle-nodes"></i></div>
+            <div><div class="kpi-num" id="kpiEntries">127</div><div class="kpi-label">Geofence Entries</div><div class="kpi-trend up"><i class="fas fa-arrow-up"></i> +12% this week</div></div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#22c55e">
+            <div class="kpi-icon" style="background:rgba(34,197,94,.15);color:#22c55e"><i class="fas fa-paper-plane"></i></div>
+            <div><div class="kpi-num" id="kpiSent">89</div><div class="kpi-label">Offers Sent</div><div class="kpi-trend up"><i class="fas fa-arrow-up"></i> +8% this week</div></div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#8b5cf6">
+            <div class="kpi-icon" style="background:rgba(139,92,246,.15);color:#8b5cf6"><i class="fas fa-ticket"></i></div>
+            <div><div class="kpi-num" id="kpiRedeemed">43</div><div class="kpi-label">Offers Redeemed</div><div class="kpi-trend up"><i class="fas fa-arrow-up"></i> +23% this week</div></div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#f59e0b">
+            <div class="kpi-icon" style="background:rgba(245,158,11,.15);color:#f59e0b"><i class="fas fa-indian-rupee-sign"></i></div>
+            <div><div class="kpi-num" id="kpiRevenue">₹12.4k</div><div class="kpi-label">Total Revenue</div><div class="kpi-trend up"><i class="fas fa-arrow-up"></i> +15% this week</div></div>
+          </div>
+        </div>
+        <!-- Charts -->
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Daily Entries & Revenue</h3>
+              <div class="chart-legend">
+                <span><span class="cl-dot" style="background:#6366f1"></span>Entries</span>
+                <span><span class="cl-dot" style="background:#22c55e"></span>Revenue</span>
+              </div>
+            </div>
+            <canvas id="dailyChart" height="140"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header"><h3>Category Split</h3></div>
+            <canvas id="categoryChart" height="140"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header"><h3>Offer Funnel</h3></div>
+            <canvas id="funnelChart" height="140"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header"><h3>Revenue by Store Type</h3></div>
+            <canvas id="revenueChart" height="140"></canvas>
+          </div>
+        </div>
+        <!-- Heatmap -->
+        <div class="chart-card" style="margin-bottom:16px">
+          <div class="chart-header"><h3>Weekly Visit Heatmap</h3><span style="font-size:11px;color:var(--text-3)">Hours × Days</span></div>
+          <div id="heatmapGrid"></div>
+        </div>
+      </div>
+
+      <!-- LIVE ACTIVITY TAB -->
+      <div class="r-section" id="tab-realtime">
+        <div style="font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin-bottom:20px;">Live Activity <span style="font-size:12px;color:var(--green);font-weight:500;background:rgba(34,197,94,.1);padding:3px 10px;border-radius:20px;">● LIVE</span></div>
+        <div class="realtime-row">
+          <div class="rt-card">
+            <div class="rt-title"><i class="fas fa-location-dot" style="color:var(--accent)"></i> Active Geofences</div>
+            <div id="liveGeofences"></div>
+          </div>
+          <div class="rt-card">
+            <div class="rt-title"><i class="fas fa-tags" style="color:var(--green)"></i> Recent Offer Claims</div>
+            <div id="liveClaims"></div>
+          </div>
+          <div class="rt-card">
+            <div class="rt-title"><i class="fas fa-bolt" style="color:var(--orange)"></i> Top Selling Now</div>
+            <div id="liveTop"></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><h3>Real-time Entries (last 24 hours)</h3></div>
+          <canvas id="realtimeChart" height="120"></canvas>
+        </div>
+      </div>
+
+      <!-- STORES TAB -->
+      <div class="r-section" id="tab-stores">
+        <div style="font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin-bottom:20px;">My Stores</div>
+        <div class="stores-table-wrap">
+          <div class="st-header"><h3>All Stores (13)</h3><button style="padding:7px 14px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:white;font-size:12px;font-weight:600;cursor:pointer;" onclick="switchTab(document.querySelector('[onclick*=register]'),'register')"><i class="fas fa-plus"></i> Add Store</button></div>
+          <div style="overflow-x:auto">
+            <table class="stores-table" id="storesTable"></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- OFFERS TAB -->
+      <div class="r-section" id="tab-offers">
+        <div style="font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin-bottom:20px;">Manage Offers</div>
+        <div class="offers-manager" id="offersManager"></div>
+      </div>
+
+      <!-- CUSTOMERS TAB -->
+      <div class="r-section" id="tab-customers">
+        <div style="font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin-bottom:20px;">Customer Insights</div>
+        <div class="customer-grid" id="customerGrid"></div>
+      </div>
+
+      <!-- REGISTER STORE TAB -->
+      <!-- ORDERS TAB -->
+      <div class="r-section" id="tab-orders">
+        <div style="font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin-bottom:20px;">Incoming Orders</div>
+        <div id="ordersContainer">
+          <div style="text-align:center;padding:40px;color:var(--text-3);"><i class="fas fa-spinner fa-spin" style="font-size:24px;"></i><p style="margin-top:8px;">Loading orders...</p></div>
+        </div>
+      </div>
+
+      <!-- MESSAGES TAB -->
+      <div class="r-section" id="tab-messages">
+        <div style="font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin-bottom:20px;">Customer Messages</div>
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;height:calc(100vh - 200px);">
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;display:flex;flex-direction:column;">
+            <div style="padding:12px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;">Conversations</div>
+            <div id="retConvList" style="flex:1;overflow-y:auto;"></div>
+          </div>
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;">
+            <div style="flex:1;overflow-y:auto;padding:16px;" id="retChatBody">
+              <div style="text-align:center;color:var(--text-3);padding:40px;font-size:13px;">Select a conversation</div>
+            </div>
+            <div style="padding:12px 14px;border-top:1px solid var(--border);display:flex;gap:8px;">
+              <input type="text" id="retMsgInput" placeholder="Reply to customer..." style="flex:1;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-1);font-size:13px;" onkeypress="if(event.key==='Enter')sendRetMsg()">
+              <button onclick="sendRetMsg()" style="padding:8px 14px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;font-size:12px;font-weight:600;border:none;cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+            </div>
+            <div style="padding:8px 14px;border-top:1px solid var(--border);background:var(--bg-card2);display:flex;gap:6px;flex-wrap:wrap;">
+              <span style="font-size:10px;color:var(--text-3);width:100%;margin-bottom:2px;">Quick status updates:</span>
+              <button onclick="sendStatusMsg('confirmed')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);font-size:10px;cursor:pointer;">✅ Confirmed</button>
+              <button onclick="sendStatusMsg('preparing')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);font-size:10px;cursor:pointer;">👨‍🍳 Preparing</button>
+              <button onclick="sendStatusMsg('ready')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);font-size:10px;cursor:pointer;">🎉 Ready</button>
+              <button onclick="sendStatusMsg('delivered')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);font-size:10px;cursor:pointer;">📦 Delivered</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRODUCTS TAB -->
+      <div class="r-section" id="tab-products">
+        <div style="font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin-bottom:20px;">Product Management</div>
+        <div style="display:grid;grid-template-columns:1fr 380px;gap:20px;">
+          <div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+              <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="font-size:14px;font-weight:700;">All Products</h3>
+                <select id="prodStoreFilter" onchange="loadStoreProducts()" style="background:var(--bg-card2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text-1);font-size:12px;">
+                  <option value="">All Stores</option>
+                </select>
+              </div>
+              <div id="productsTable" style="padding:14px;"></div>
+            </div>
+          </div>
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;">
+            <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;"><i class="fas fa-plus" style="color:var(--accent);margin-right:6px;"></i> Add New Product</h3>
+            <div class="form-group"><label>Store</label>
+              <select id="newProdStore" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text-1);font-size:13px;"></select>
+            </div>
+            <div class="form-group"><label>Product Name</label>
+              <input type="text" id="newProdName" placeholder="e.g. Croissant, Sushi, Tacos, Pizza..." style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text-1);font-size:13px;">
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Price (₹)</label>
+                <input type="number" id="newProdPrice" placeholder="0" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text-1);font-size:13px;">
+              </div>
+              <div class="form-group"><label>Emoji</label>
+                <input type="text" id="newProdEmoji" placeholder="🍕" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text-1);font-size:13px;">
+              </div>
+            </div>
+            <div class="form-group"><label>Description</label>
+              <textarea id="newProdDesc" placeholder="Product description..." rows="2" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text-1);font-size:13px;resize:none;"></textarea>
+            </div>
+            <button onclick="addNewProduct()" style="width:100%;padding:11px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;font-size:14px;font-weight:600;border:none;cursor:pointer;"><i class="fas fa-plus"></i> Add Product</button>
+            <div id="prodAddMsg" style="margin-top:8px;font-size:12px;text-align:center;display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="r-section" id="tab-register">
+        <div style="font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin-bottom:20px;">Register New Store</div>
+        <div class="form-card">
+          <div class="form-row">
+            <div class="form-group"><label>Store Name</label><input type="text" id="rName" placeholder="e.g. Burger King AMB Mall"></div>
+            <div class="form-group"><label>Category</label>
+              <select id="rCat">
+                <option value="bakery">🥐 Bakery</option><option value="cafe">☕ Cafe</option>
+                <option value="restaurant">🍛 Restaurant</option><option value="supermarket">🛒 Supermarket</option>
+                <option value="fashion">👗 Fashion</option><option value="electronics">📱 Electronics</option>
+                <option value="beauty">💄 Beauty</option><option value="entertainment">🎬 Entertainment</option>
+                <option value="lifestyle">🏠 Lifestyle</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Mall / Location</label><input type="text" id="rMall" placeholder="AMB Mall / College Campus"></div>
+            <div class="form-group"><label>Floor & Shop No.</label><input type="text" id="rFloor" placeholder="1st Floor, Shop 1F-102"></div>
+          </div>
+          <div class="form-group"><label>Full Address</label><input type="text" id="rAddress" placeholder="Street, Area, City"></div>
+          <div class="form-row">
+            <div class="form-group"><label>Latitude</label><input type="number" id="rLat" placeholder="17.4156" step="0.0001"></div>
+            <div class="form-group"><label>Longitude</label><input type="number" id="rLng" placeholder="78.4347" step="0.0001"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Phone</label><input type="text" id="rPhone" placeholder="+91-XXXXX-XXXXX"></div>
+            <div class="form-group"><label>Geofence Radius (m)</label><input type="number" id="rRadius" placeholder="200" value="200"></div>
+          </div>
+          <button onclick="registerStore()" style="padding:12px 24px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;font-size:14px;font-weight:700;cursor:pointer;"><i class="fas fa-plus-circle"></i> Register Store</button>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div>
+</div>
+
+<script>
+// ── TABS ──────────────────────────────────────────────────
+function switchTab(btn, id) {
+  document.querySelectorAll('.rs-tab').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.querySelectorAll('.r-section').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('tab-'+id);
+  if(el)el.classList.add('active');
+  if(id==='stores')buildStoresTable();
+  if(id==='offers')buildOffersManager();
+  if(id==='customers')buildCustomers();
+  if(id==='realtime')buildRealtime();
+}
+
+// ── CHARTS ───────────────────────────────────────────────
+const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const entries=[12,19,8,23,15,28,22];
+const revenue=[1200,1850,980,2300,1500,2800,1820];
+const chartDefaults={responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)',borderColor:'transparent'},ticks:{color:'#64748b',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,0.04)',borderColor:'transparent'},ticks:{color:'#64748b',font:{size:11}}}}};
+
+window.addEventListener('load',()=>{
+  // Daily chart
+  new Chart(document.getElementById('dailyChart'),{
+    type:'bar',
+    data:{labels:DAYS,datasets:[
+      {label:'Entries',data:entries,backgroundColor:'rgba(99,102,241,0.7)',borderRadius:6,yAxisID:'y'},
+      {label:'Revenue (₹100s)',data:revenue.map(v=>v/100),backgroundColor:'rgba(34,197,94,0.6)',borderRadius:6,yAxisID:'y2'}
+    ]},
+    options:{...chartDefaults,responsive:true,plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{size:11}}}},scales:{
+      x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b',font:{size:11}}},
+      y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6366f1',font:{size:11}},position:'left'},
+      y2:{grid:{display:false},ticks:{color:'#22c55e',font:{size:11}},position:'right'}
+    }}
+  });
+  // Category donut
+  new Chart(document.getElementById('categoryChart'),{
+    type:'doughnut',
+    data:{labels:['Bakery','Cafe','Supermarket','Restaurant','Fashion','Others'],
+      datasets:[{data:[35,28,22,15,12,8],backgroundColor:['#f59e0b','#8b5cf6','#22c55e','#ef4444','#ec4899','#6b7280'],borderWidth:0}]},
+    options:{responsive:true,cutout:'70%',plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:10},boxWidth:10,padding:8}}}}
+  });
+  // Funnel
+  new Chart(document.getElementById('funnelChart'),{
+    type:'bar',
+    data:{labels:['Entries','Notified','Opened','Claimed','Purchased'],
+      datasets:[{data:[127,89,62,43,31],backgroundColor:['rgba(99,102,241,.8)','rgba(99,102,241,.65)','rgba(99,102,241,.5)','rgba(99,102,241,.35)','rgba(99,102,241,.2)'],borderRadius:6}]},
+    options:{...chartDefaults,indexAxis:'y'}
+  });
+  // Revenue by type
+  new Chart(document.getElementById('revenueChart'),{
+    type:'line',
+    data:{labels:DAYS,datasets:[
+      {label:'Fashion',data:[800,1200,600,1500,900,1800,1200],borderColor:'#ec4899',tension:.4,fill:false,pointRadius:3},
+      {label:'Food',data:[400,650,380,800,500,900,650],borderColor:'#f97316',tension:.4,fill:false,pointRadius:3},
+      {label:'Electronics',data:[0,0,0,0,600,100,0],borderColor:'#6b7280',tension:.4,fill:false,pointRadius:3},
+    ]},
+    options:{...chartDefaults,plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{size:10},boxWidth:10}}}}
+  });
+  // Heatmap
+  buildHeatmap();
+  // Load real analytics
+  fetch('/api/analytics').then(r=>r.json()).then(d=>{
+    if(d.success&&d.analytics){
+      document.getElementById('kpiEntries').textContent=d.analytics.geofence_entries;
+      document.getElementById('kpiSent').textContent=d.analytics.offers_sent;
+      document.getElementById('kpiRedeemed').textContent=d.analytics.offers_redeemed;
+      document.getElementById('kpiRevenue').textContent='₹'+d.analytics.revenue.toLocaleString('en-IN');
+    }
+  }).catch(()=>{});
+});
+
+function buildHeatmap(){
+  const container=document.getElementById('heatmapGrid');
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const hours=['6am','9am','12pm','3pm','6pm','9pm','12am'];
+  let html='<div style="display:grid;grid-template-columns:40px repeat(7,1fr);gap:3px;font-size:10px;">';
+  html+='<div></div>';
+  days.forEach(d=>html+=`<div style="text-align:center;color:var(--text-3);padding-bottom:4px;">${d}</div>`);
+  hours.forEach((h,hi)=>{
+    html+=`<div style="color:var(--text-3);display:flex;align-items:center;">${h}</div>`;
+    days.forEach((_,di)=>{
+      const intensity=Math.floor(Math.random()*100);
+      const alpha=0.08+intensity/120;
+      const tip=`${h} ${days[di]}: ${intensity} visits`;
+      html+=`<div class="hm-cell" style="background:rgba(99,102,241,${alpha.toFixed(2)})" data-tip="${tip}"></div>`;
+    });
+  });
+  html+='</div>';
+  container.innerHTML=html;
+}
+
+// ── REALTIME ─────────────────────────────────────────────
+function buildRealtime(){
+  const geoStores=[
+    {name:'Zara Fashion',emoji:'👗',mall:'AMB Mall',visitors:12},
+    {name:'Food Hall',emoji:'🍱',mall:'AMB Mall',visitors:8},
+    {name:'Starbucks',emoji:'☕',mall:'AMB Mall',visitors:5},
+  ];
+  const claims=[
+    {name:'End of Season Sale',store:'Zara',emoji:'👗',disc:'30%',time:'2m ago'},
+    {name:'Frappy Hour',store:'Starbucks',emoji:'☕',disc:'25%',time:'4m ago'},
+    {name:'Biryani Special',store:'Food Hall',emoji:'🍛',disc:'15%',time:'7m ago'},
+    {name:'Movie Monday',store:'Cinemax',emoji:'🎬',disc:'20%',time:'12m ago'},
+  ];
+  const top=[
+    {name:'Hyderabadi Biryani',store:'Food Hall',emoji:'🍛',sold:23},
+    {name:'Frappuccino',store:'Starbucks',emoji:'🧋',sold:18},
+    {name:'Zara Jeans',store:'Zara',emoji:'👖',sold:11},
+  ];
+  document.getElementById('liveGeofences').innerHTML=geoStores.map(s=>`
+    <div class="rt-item"><div class="rt-emoji">${s.emoji}</div>
+    <div class="rt-info"><div class="rt-name">${s.name}</div><div class="rt-meta">${s.mall}</div></div>
+    <div class="rt-val">${s.visitors} in zone</div></div>`).join('');
+  document.getElementById('liveClaims').innerHTML=claims.map(c=>`
+    <div class="rt-item"><div class="rt-emoji">${c.emoji}</div>
+    <div class="rt-info"><div class="rt-name">${c.name}</div><div class="rt-meta">${c.store} · ${c.time}</div></div>
+    <div class="rt-val">${c.disc}</div></div>`).join('');
+  document.getElementById('liveTop').innerHTML=top.map(t=>`
+    <div class="rt-item"><div class="rt-emoji">${t.emoji}</div>
+    <div class="rt-info"><div class="rt-name">${t.name}</div><div class="rt-meta">${t.store}</div></div>
+    <div class="rt-val">${t.sold} sold</div></div>`).join('');
+  // Realtime chart
+  const labels=Array.from({length:24},(_,i)=>`${i}:00`);
+  const data=labels.map((_,i)=>Math.floor(Math.random()*30+5));
+  if(window._rtChart) window._rtChart.destroy();
+  window._rtChart=new Chart(document.getElementById('realtimeChart'),{
+    type:'line',
+    data:{labels,datasets:[{data,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.08)',fill:true,tension:.4,pointRadius:2}]},
+    options:{...{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b',font:{size:9},maxTicksLimit:8}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#64748b',font:{size:9}}}}}
+    }
+  });
+}
+
+// ── STORES TABLE ──────────────────────────────────────────
+async function buildStoresTable(){
+  const res=await fetch('/api/stores/all');
+  const data=await res.json();
+  if(!data.success)return;
+  const catEmoji={bakery:'🥐',cafe:'☕',supermarket:'🛒',restaurant:'🍛',convenience_store:'🏪',fashion:'👗',beauty:'💄',entertainment:'🎬',electronics:'📱',lifestyle:'🏠'};
+  document.getElementById('storesTable').innerHTML=`
+    <thead><tr>
+      <th>Store</th><th>Category</th><th>Mall</th><th>Floor</th>
+      <th>Rating</th><th>Geofence</th><th>Status</th><th>Offers</th>
+    </tr></thead>
+    <tbody>${data.stores.map(s=>`<tr>
+      <td><b>${catEmoji[s.category]||'🏬'} ${s.name}</b></td>
+      <td><span style="color:var(--text-2);text-transform:capitalize;">${s.category.replace('_',' ')}</span></td>
+      <td>${s.mall||'—'}</td>
+      <td>${s.floor||'—'}</td>
+      <td><span style="color:var(--orange)">★</span> ${s.rating}</td>
+      <td>${s.geofence_radius}m</td>
+      <td><span class="status-pill active"><span class="status-dot2"></span>Active</span></td>
+      <td><span class="offer-mini">${s.category==='fashion'?3:s.category==='electronics'?3:3} offers</span></td>
+    </tr>`).join('')}</tbody>`;
+}
+
+// ── OFFERS MANAGER ────────────────────────────────────────
+async function buildOffersManager(){
+  const res=await fetch('/api/stores/all');
+  const data=await res.json();
+  if(!data.success)return;
+  const stats=[{c:12,r:45},{c:8,r:28},{c:15,r:52},{c:5,r:18},{c:20,r:67},{c:3,r:9},{c:18,r:63},{c:7,r:22},{c:11,r:38},{c:6,r:19},{c:14,r:50},{c:4,r:12},{c:9,r:30}];
+  const offersRes = await fetch('/api/offers/all');
+  const offersData = await offersRes.json();
+  const offers = offersData.offers || [];
+  // Group by store
+  const storeMap = {};
+  offers.forEach(o => {
+    if (!storeMap[o.store_id]) storeMap[o.store_id] = {name: o.store_name, offers: []};
+    storeMap[o.store_id].offers.push(o);
+  });
+  document.getElementById('offersManager').innerHTML = Object.entries(storeMap).map(([sid, sd]) => {
+    return sd.offers.map(o => `
+    <div class="offer-manage-card" id="omc-${o.id}">
+      <div class="omc-header">
+        <div class="omc-store">${sd.name}</div>
+        <label class="omc-toggle">
+          <input type="checkbox" ${o.enabled !== false ? 'checked' : ''} onchange="toggleOffer('${o.id}', this.checked)">
+          <span class="omc-slider"></span>
+        </label>
+      </div>
+      <div class="omc-title" style="font-weight:600;font-size:13px;margin:6px 0 2px;">${o.title}</div>
+      <div class="omc-disc" style="font-size:18px;font-weight:800;color:var(--green);">${o.discount_pct}% OFF</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:2px;">${o.product} · ₹${o.original_price} → ₹${o.final_price}</div>
+      <div class="omc-meta" style="font-size:10px;color:var(--text-3);margin-top:4px;">Valid until: ${o.valid_until}</div>
+      <div style="margin-top:10px;display:flex;gap:6px;">
+        <button onclick="toggleOffer('${o.id}',false)" style="flex:1;padding:5px;border-radius:6px;border:1px solid var(--red);background:rgba(239,68,68,0.1);color:var(--red);font-size:10px;cursor:pointer;font-weight:600;">🚫 Disable</button>
+        <button onclick="toggleOffer('${o.id}',true)" style="flex:1;padding:5px;border-radius:6px;border:1px solid var(--green);background:rgba(34,197,94,0.1);color:var(--green);font-size:10px;cursor:pointer;font-weight:600;">✅ Enable</button>
+      </div>
+    </div>`).join('');
+  }).join('');
+  // Also show add-offer form
+  if (!document.getElementById('addOfferFormSection')) {
+    document.getElementById('tab-offers').insertAdjacentHTML('beforeend', `
+      <div id="addOfferFormSection" style="margin-top:24px;">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;">➕ Add Custom Offer</h3>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;max-width:560px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div><label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px;">Store</label>
+              <select id="addOfferStore" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-1);font-size:13px;"></select>
+            </div>
+            <div><label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px;">Title</label>
+              <input type="text" id="addOfferTitle" placeholder="e.g. Weekend Deal" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-1);font-size:13px;">
+            </div>
+            <div><label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px;">Product</label>
+              <input type="text" id="addOfferProduct" placeholder="e.g. Chocolate Cake" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-1);font-size:13px;">
+            </div>
+            <div><label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px;">Discount %</label>
+              <input type="number" id="addOfferDisc" placeholder="20" min="1" max="90" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-1);font-size:13px;">
+            </div>
+            <div><label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px;">Original Price ₹</label>
+              <input type="number" id="addOfferPrice" placeholder="200" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-1);font-size:13px;">
+            </div>
+            <div><label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px;">Emoji</label>
+              <input type="text" id="addOfferEmoji" placeholder="🏷️" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-1);font-size:13px;">
+            </div>
+          </div>
+          <div style="margin-top:12px;"><label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:4px;">Description</label>
+            <textarea id="addOfferDesc" rows="2" placeholder="Offer description..." style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-1);font-size:13px;resize:none;"></textarea>
+          </div>
+          <button onclick="submitCustomOffer()" style="margin-top:12px;padding:10px 24px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;font-size:13px;font-weight:600;border:none;cursor:pointer;"><i class="fas fa-plus"></i> Add Offer</button>
+          <span id="addOfferMsg" style="margin-left:10px;font-size:12px;display:none;"></span>
+        </div>
+      </div>`);
+    // Populate store select
+    const sRes = await fetch('/api/stores/all');
+    const sData = await sRes.json();
+    document.getElementById('addOfferStore').innerHTML = sData.stores.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  }
+}
+
+async function toggleOffer(offerId, enabled) {
+  const res = await fetch('/api/offers/toggle', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({offer_id: offerId, enabled})
+  });
+  const data = await res.json();
+  if (data.success) {
+    const card = document.getElementById('omc-'+offerId);
+    if (card) card.style.opacity = enabled ? '1' : '0.4';
+    const chk = card?.querySelector('input[type=checkbox]');
+    if (chk) chk.checked = enabled;
+    alert(enabled ? '✅ Offer enabled — visible site-wide' : '🚫 Offer disabled — hidden site-wide');
+  }
+}
+
+async function submitCustomOffer() {
+  const payload = {
+    store_id: document.getElementById('addOfferStore').value,
+    title: document.getElementById('addOfferTitle').value,
+    product: document.getElementById('addOfferProduct').value,
+    discount_pct: document.getElementById('addOfferDisc').value,
+    original_price: document.getElementById('addOfferPrice').value,
+    emoji: document.getElementById('addOfferEmoji').value || '🏷️',
+    description: document.getElementById('addOfferDesc').value
+  };
+  const res = await fetch('/api/offers/custom', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  const msg = document.getElementById('addOfferMsg');
+  if (data.success) {
+    msg.textContent = '✅ Offer added!'; msg.style.color='var(--green)'; msg.style.display='inline';
+    buildOffersManager();
+  } else {
+    msg.textContent = '❌ Error adding offer'; msg.style.color='var(--red)'; msg.style.display='inline';
+  }
+  setTimeout(() => msg.style.display='none', 3000);
+}
+
+// ── CUSTOMERS ─────────────────────────────────────────────
+function buildCustomers(){
+  const customers=[
+    {name:'Alex Johnson',email:'demo@smartaisle.com',tier:'Gold',points:1250,visits:23,spent:'₹8,450'},
+    {name:'Priya Sharma',email:'priya@gmail.com',tier:'Silver',points:680,visits:14,spent:'₹3,200'},
+    {name:'Rahul Mehta',email:'rahul@gmail.com',tier:'Bronze',points:320,visits:7,spent:'₹1,100'},
+    {name:'Ananya Das',email:'ananya@gmail.com',tier:'Gold',points:2100,visits:45,spent:'₹18,700'},
+    {name:'Kiran Patel',email:'kiran@gmail.com',tier:'Silver',points:890,visits:19,spent:'₹5,600'},
+    {name:'Deepak Kumar',email:'deepak@gmail.com',tier:'Bronze',points:150,visits:4,spent:'₹680'},
+    {name:'Meera Nair',email:'meera@gmail.com',tier:'Gold',points:3400,visits:67,spent:'₹32,000'},
+    {name:'Arjun Singh',email:'arjun@gmail.com',tier:'Silver',points:560,visits:11,spent:'₹2,800'},
+  ];
+  document.getElementById('customerGrid').innerHTML=customers.map(c=>`
+    <div class="customer-card">
+      <div class="cust-avatar">${c.name[0]}</div>
+      <div class="cust-name">${c.name}</div>
+      <div class="cust-email">${c.email}</div>
+      <span class="tier-badge tier-${c.tier.toLowerCase()}">${c.tier} Tier</span>
+      <div class="cust-stats">
+        <span class="cust-stat">${c.points} pts</span>
+        <span class="cust-stat">${c.visits} visits</span>
+        <span class="cust-stat">${c.spent}</span>
+      </div>
+    </div>`).join('');
+}
+
+// ── REGISTER STORE ────────────────────────────────────────
+async function registerStore(){
+  const name=document.getElementById('rName').value.trim();
+  if(!name){alert('Store name is required');return;}
+  const payload={
+    name,category:document.getElementById('rCat').value,
+    mall:document.getElementById('rMall').value,floor:document.getElementById('rFloor').value,
+    address:document.getElementById('rAddress').value,phone:document.getElementById('rPhone').value,
+    lat:parseFloat(document.getElementById('rLat').value)||17.4156,
+    lng:parseFloat(document.getElementById('rLng').value)||78.4347,
+    geofence_radius:parseInt(document.getElementById('rRadius').value)||200
+  };
+  const res=await fetch('/api/stores/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const data=await res.json();
+  if(data.success){
+    alert(`✅ "${name}" registered! Store ID: ${data.store.id}`);
+    ['rName','rMall','rFloor','rAddress','rPhone','rLat','rLng'].forEach(id=>document.getElementById(id).value='');
+  }
+}
+
+// ── ORDERS ────────────────────────────────────────────────
+async function buildOrders() {
+  const user = JSON.parse(localStorage.getItem('smartaisle_user') || '{}');
+  const retId = user.id || 'retailer';
+  try {
+    const res = await fetch(`/api/orders/retailer/${retId}`);
+    const data = await res.json();
+    const orders = data.orders || [];
+    const badge = document.getElementById('ordersBadge');
+    const newOrders = orders.filter(o => o.status === 'placed').length;
+    if (newOrders) { badge.style.display='inline'; badge.textContent=newOrders; }
+    const container = document.getElementById('ordersContainer');
+    if (!orders.length) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-3);"><i class="fas fa-inbox" style="font-size:32px;opacity:.3;"></i><p style="margin-top:8px;">No orders yet</p></div>';
+      return;
+    }
+    container.innerHTML = orders.map(o => {
+      const statusColors = {placed:'var(--orange)',confirmed:'var(--blue)',preparing:'var(--cyan)',ready:'var(--green)',delivered:'var(--text-3)'};
+      const sc = statusColors[o.status] || 'var(--text-3)';
+      return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div>
+            <div style="font-size:14px;font-weight:700;">${o.id}</div>
+            <div style="font-size:11px;color:var(--text-3);">${new Date(o.created_at).toLocaleString('en-IN')}</div>
+          </div>
+          <div>
+            <span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${sc}22;color:${sc};">${o.status.toUpperCase()}</span>
+          </div>
+        </div>
+        <div style="font-size:13px;margin-bottom:8px;"><b>${o.user_name}</b> — ${o.items.map(i=>i.name||'Item').join(', ')}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:15px;font-weight:700;color:var(--green);">₹${o.total}</div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="updateStatus('${o.id}','confirmed')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card2);color:var(--text-2);font-size:11px;cursor:pointer;">✅ Confirm</button>
+            <button onclick="updateStatus('${o.id}','preparing')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card2);color:var(--text-2);font-size:11px;cursor:pointer;">👨‍🍳 Prepare</button>
+            <button onclick="updateStatus('${o.id}','ready')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card2);color:var(--text-2);font-size:11px;cursor:pointer;">🎉 Ready</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('ordersContainer').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-3);">Could not load orders</div>';
+  }
+}
+
+async function updateStatus(orderId, status) {
+  const res = await fetch(`/api/orders/${orderId}/status`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({status})
+  });
+  const data = await res.json();
+  if (data.success) { buildOrders(); alert(`Order updated: ${status}`); }
+}
+
+// ── RETAILER MESSAGES ─────────────────────────────────────
+let retActiveUser = null;
+let retMessages = [];
+
+async function buildRetMessages() {
+  const user = JSON.parse(localStorage.getItem('smartaisle_user') || '{}');
+  try {
+    const res = await fetch(`/api/messages/${user.id || 'retailer'}`);
+    const data = await res.json();
+    retMessages = data.messages || [];
+    // Group by sender/receiver
+    const partners = {};
+    retMessages.forEach(m => {
+      const partner = m.sender === (user.id||'retailer') ? m.receiver : m.sender;
+      if (!partners[partner]) partners[partner] = [];
+      partners[partner].push(m);
+    });
+    const list = document.getElementById('retConvList');
+    if (!Object.keys(partners).length) {
+      list.innerHTML = '<div style="padding:16px;text-align:center;font-size:12px;color:var(--text-3);">No messages yet</div>';
+      return;
+    }
+    list.innerHTML = Object.entries(partners).map(([p, msgs]) => {
+      const latest = msgs[0];
+      return `<div style="padding:12px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;" 
+                   onclick="openRetConv('${p}')"
+                   onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">
+        <div style="font-size:12px;font-weight:600;">👤 ${p.substring(0,12)}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${latest.message.substring(0,40)}...</div>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+function openRetConv(partner) {
+  retActiveUser = partner;
+  const msgs = retMessages.filter(m => m.sender===partner || m.receiver===partner);
+  const body = document.getElementById('retChatBody');
+  body.innerHTML = msgs.length ? [...msgs].reverse().map(m => {
+    const isMe = m.sender !== partner;
+    return `<div style="max-width:70%;padding:8px 12px;border-radius:10px;font-size:12px;margin-bottom:8px;line-height:1.4;${isMe?'background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;margin-left:auto;':'background:var(--bg-card2);border:1px solid var(--border);'}">
+      <div style="white-space:pre-line;">${m.message}</div>
+    </div>`;
+  }).join('') : '<div style="text-align:center;color:var(--text-3);font-size:12px;">No messages</div>';
+  body.scrollTop = body.scrollHeight;
+}
+
+async function sendRetMsg() {
+  if (!retActiveUser) return;
+  const input = document.getElementById('retMsgInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  const user = JSON.parse(localStorage.getItem('smartaisle_user') || '{}');
+  await fetch('/api/messages/send', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({sender: user.id||'retailer', receiver: retActiveUser, message: text, type:'retailer_msg'})
+  });
+  buildRetMessages();
+}
+
+function sendStatusMsg(status) {
+  if (!retActiveUser) { alert('Select a conversation first'); return; }
+  const messages = {confirmed:'✅ Your order is confirmed!',preparing:'👨‍🍳 Your order is being prepared.',ready:'🎉 Your order is ready for pickup!',delivered:'📦 Your order has been delivered!'};
+  document.getElementById('retMsgInput').value = messages[status] || status;
+  sendRetMsg();
+}
+
+// ── PRODUCTS ──────────────────────────────────────────────
+async function buildProducts() {
+  const res = await fetch('/api/stores/all');
+  const data = await res.json();
+  const stores = data.stores || [];
+  const sel1 = document.getElementById('prodStoreFilter');
+  const sel2 = document.getElementById('newProdStore');
+  const opts = stores.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  if (sel1) sel1.innerHTML = '<option value="">All Stores</option>' + opts;
+  if (sel2) sel2.innerHTML = opts;
+  loadStoreProducts();
+}
+
+async function loadStoreProducts() {
+  const storeId = document.getElementById('prodStoreFilter')?.value;
+  const res = await fetch('/api/stores/all');
+  const data = await res.json();
+  let stores = data.stores || [];
+  if (storeId) stores = stores.filter(s => s.id === storeId);
+  let allProds = [];
+  stores.forEach(s => s.products?.forEach(p => allProds.push({...p, storeName: s.name, storeId: s.id})));
+  const table = document.getElementById('productsTable');
+  if (!allProds.length) { table.innerHTML = '<div style="color:var(--text-3);text-align:center;padding:20px;">No products found</div>'; return; }
+  table.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+    <thead><tr>${['Emoji','Name','Store','Price',''].map(h=>`<th style="padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);text-align:left;">${h}</th>`).join('')}</tr></thead>
+    <tbody>${allProds.map(p=>`<tr style="border-top:1px solid var(--border);">
+      <td style="padding:10px 12px;font-size:20px;">${p.emoji||'🛍️'}</td>
+      <td style="padding:10px 12px;font-size:13px;font-weight:600;">${p.name}</td>
+      <td style="padding:10px 12px;font-size:12px;color:var(--text-3);">${p.storeName}</td>
+      <td style="padding:10px 12px;font-size:13px;font-weight:700;color:var(--green);">₹${p.price}</td>
+      <td style="padding:10px 12px;"><span style="font-size:10px;padding:2px 8px;border-radius:5px;background:rgba(34,197,94,0.1);color:var(--green);">Active</span></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+async function addNewProduct() {
+  const name = document.getElementById('newProdName').value.trim();
+  const price = parseFloat(document.getElementById('newProdPrice').value);
+  const emoji = document.getElementById('newProdEmoji').value.trim() || '🛍️';
+  const desc = document.getElementById('newProdDesc').value.trim();
+  const storeId = document.getElementById('newProdStore').value;
+  if (!name || !price || !storeId) { alert('Fill all required fields'); return; }
+  const res = await fetch(`/api/stores/${storeId}/products`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, price, emoji, description: desc})
+  });
+  const data = await res.json();
+  if (data.success) {
+    const msg = document.getElementById('prodAddMsg');
+    msg.textContent = `✅ "${name}" added successfully!`; msg.style.color='var(--green)'; msg.style.display='block';
+    document.getElementById('newProdName').value=''; document.getElementById('newProdPrice').value='';
+    document.getElementById('newProdEmoji').value=''; document.getElementById('newProdDesc').value='';
+    loadStoreProducts();
+    setTimeout(() => msg.style.display='none', 3000);
+  }
+}
+
+// Extend switchTab to handle new tabs
+const _origSwitchTab = switchTab;
+function switchTab(btn, id) {
+  _origSwitchTab(btn, id);
+  if (id === 'orders') buildOrders();
+  if (id === 'messages') buildRetMessages();
+  if (id === 'products') buildProducts();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+{% block title %}Explore Map{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+#map{width:100%;height:100%;border-radius:0;}
+.map-page{padding-top:70px;height:100vh;display:flex;flex-direction:column;}
+.map-layout{flex:1;display:flex;overflow:hidden;}
+.search-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border-lg);border-radius:var(--radius);margin-top:4px;z-index:9999;max-height:260px;overflow-y:auto;display:none;box-shadow:0 8px 30px rgba(0,0,0,0.4);}
+.search-dropdown.open{display:block;}
+.sd-item{padding:10px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);transition:background .15s;}
+.sd-item:hover{background:var(--bg-hover);}
+.sd-item-icon{width:22px;text-align:center;font-size:16px;}
+.sd-item-name{font-weight:600;}
+.sd-item-sub{font-size:11px;color:var(--text-3);margin-top:1px;}
+.mall-group-header{padding:8px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-3);display:flex;align-items:center;gap:8px;}
+.mall-badge-s{display:inline-block;padding:1px 7px;border-radius:10px;background:rgba(99,102,241,0.15);color:var(--accent);font-size:10px;font-weight:600;}
+/* 3D Modal */
+.view3d-modal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);align-items:center;justify-content:center;}
+.view3d-modal.open{display:flex;}
+.view3d-container{width:min(900px,95vw);height:min(600px,85vh);background:var(--bg-card);border:1px solid var(--border-lg);border-radius:var(--radius-xl);overflow:hidden;position:relative;}
+.view3d-header{position:absolute;top:0;left:0;right:0;z-index:10;background:linear-gradient(to bottom,rgba(13,20,36,.95),transparent);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;}
+.view3d-title{font-size:15px;font-weight:700;}
+.view3d-close{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.1);color:white;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;}
+#view3dCanvas{width:100%;height:100%;display:block;}
+.view3d-controls{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px;}
+.view3d-btn{padding:8px 16px;border-radius:20px;background:rgba(99,102,241,.8);color:white;font-size:11px;font-weight:600;border:none;cursor:pointer;}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="map-page">
+  <!-- TOOLBAR -->
+  <div class="map-toolbar">
+    <div class="map-search-wrap" style="position:relative;">
+      <i class="fas fa-search"></i>
+      <input type="text" id="locationSearch" placeholder="Search any place — AMB Mall, Madhapur, Jubilee Hills, Pizza, Coffee..." oninput="onSearchInput()" onkeypress="searchLocation(event)">
+      <button onclick="searchLocationBtn()" class="search-btn"><i class="fas fa-arrow-right"></i></button>
+      <div class="search-dropdown" id="searchDropdown"></div>
+    </div>
+    <div class="map-filters">
+      <button class="filter-btn active" onclick="filterCategory(this,'all')"><i class="fas fa-globe"></i> All</button>
+      <button class="filter-btn" onclick="filterCategory(this,'bakery')">🥐 Bakery</button>
+      <button class="filter-btn" onclick="filterCategory(this,'cafe')">☕ Cafe</button>
+      <button class="filter-btn" onclick="filterCategory(this,'restaurant')">🍛 Food</button>
+      <button class="filter-btn" onclick="filterCategory(this,'fashion')">👗 Fashion</button>
+      <button class="filter-btn" onclick="filterCategory(this,'electronics')">📱 Tech</button>
+      <button class="filter-btn" onclick="filterCategory(this,'entertainment')">🎬 Cinema</button>
+    </div>
+    <div class="map-actions">
+      <button class="map-action-btn" onclick="locateMe()" title="My Location"><i class="fas fa-location-crosshairs"></i></button>
+      <button class="map-action-btn" onclick="showAMBMall()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-weight:700;font-size:12px;padding:0 10px;" title="AMB Mall">AMB</button>
+      <button class="map-action-btn" onclick="checkGeofence()" title="Check Geofence"><i class="fas fa-circle-nodes"></i></button>
+      <div class="radius-selector">
+        <label>Radius</label>
+        <select id="radiusSelect" onchange="refreshStores()">
+          <option value="500">500m</option>
+          <option value="1000" selected>1km</option>
+          <option value="2000">2km</option>
+          <option value="5000">5km</option>
+          <option value="20000">20km</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="map-layout">
+    <!-- SIDEBAR -->
+    <div class="map-sidebar" id="mapSidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">
+          <i class="fas fa-store"></i> Nearby Stores
+          <span class="store-count" id="storeCount">0</span>
+        </div>
+        <div class="location-status" id="locationStatus"><i class="fas fa-circle-notch fa-spin"></i> Detecting...</div>
+      </div>
+      <div class="user-loc-card" id="userLocCard" style="display:none">
+        <div class="ulc-icon"><i class="fas fa-location-dot"></i></div>
+        <div class="ulc-info">
+          <div class="ulc-title">Your Location</div>
+          <div class="ulc-coords" id="ulcCoords">—</div>
+        </div>
+        <div class="ulc-badge" id="geofenceBadge">Outside Zone</div>
+      </div>
+      <div class="store-list" id="storeList"><div class="loading-stores"><i class="fas fa-spinner fa-spin"></i> Loading stores...</div></div>
+    </div>
+
+    <!-- MAP -->
+    <div class="map-wrapper" id="mapWrapper">
+      <div id="map"></div>
+      <div class="map-overlay" id="mapOverlay">
+        <div class="mo-card">
+          <div class="mo-icon"><i class="fas fa-location-dot"></i></div>
+          <h3>Enable Location Access</h3>
+          <p>Allow location access to discover nearby stores and receive personalized offers.</p>
+          <button class="btn-primary" onclick="locateMe()"><i class="fas fa-location-crosshairs"></i> Detect My Location</button>
+          <button class="btn-ghost" onclick="useDemoLocation()">Use Demo (Campus)</button>
+          <button class="btn-ghost" onclick="showAMBMall()">🏬 Explore AMB Mall</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STORE DETAIL PANEL -->
+    <div class="store-detail-panel" id="storeDetailPanel">
+      <div class="sdp-close" onclick="closeStorePanel()"><i class="fas fa-times"></i></div>
+      <div id="sdpContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 3D VIEW MODAL -->
+<div class="view3d-modal" id="view3dModal">
+  <div class="view3d-container">
+    <div class="view3d-header">
+      <div class="view3d-title" id="view3dTitle">3D Store View</div>
+      <button class="view3d-close" onclick="close3DView()"><i class="fas fa-times"></i></button>
+    </div>
+    <canvas id="view3dCanvas"></canvas>
+    <div class="view3d-controls">
+      <button class="view3d-btn" onclick="rotate3DLeft()"><i class="fas fa-rotate-left"></i> Rotate</button>
+      <button class="view3d-btn" onclick="reset3DView()"><i class="fas fa-expand"></i> Reset</button>
+      <button class="view3d-btn" onclick="rotate3DRight()"><i class="fas fa-rotate-right"></i> Rotate</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+let map, userMarker, storeMarkers=[], currentFilter='all';
+let userLat=null, userLng=null;
+let currentStores=[];
+const DEMO_LAT=17.4401, DEMO_LNG=78.4987;
+const AMB_LAT=17.4156, AMB_LNG=78.4347;
+const categoryIcons={bakery:'🥐',cafe:'☕',supermarket:'🛒',restaurant:'🍛',convenience_store:'🏪',fashion:'👗',beauty:'💄',entertainment:'🎬',electronics:'📱',lifestyle:'🏠'};
+const categoryColors={bakery:'#f59e0b',cafe:'#8b5cf6',supermarket:'#22c55e',restaurant:'#ef4444',convenience_store:'#06b6d4',fashion:'#ec4899',beauty:'#f472b6',entertainment:'#7c3aed',electronics:'#6b7280',lifestyle:'#14b8a6'};
+
+function initMap(lat,lng,zoom=16){
+  if(!map){
+    map=L.map('map',{zoomControl:false}).setView([lat,lng],zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:20}).addTo(map);
+    // Also add a dark style overlay
+    L.control.zoom({position:'bottomright'}).addTo(map);
+  } else { map.setView([lat,lng],zoom); }
+  document.getElementById('mapOverlay').style.display='none';
+  setUserMarker(lat,lng);
+}
+
+function setUserMarker(lat,lng){
+  const icon=L.divIcon({className:'',html:`<div class="user-map-pin"><div class="user-pin-ring"></div><div class="user-pin-dot"></div></div>`,iconSize:[40,40],iconAnchor:[20,20]});
+  if(userMarker) map.removeLayer(userMarker);
+  userMarker=L.marker([lat,lng],{icon,zIndexOffset:1000}).addTo(map);
+  userMarker.bindPopup('<b>📍 You are here</b>').openPopup();
+}
+
+function addStoreMarkers(stores){
+  storeMarkers.forEach(m=>map.removeLayer(m));
+  storeMarkers=[];
+  stores.forEach(store=>{
+    if(currentFilter!=='all'&&store.category!==currentFilter)return;
+    const color=store.color||categoryColors[store.category]||'#6366f1';
+    const icon=L.divIcon({
+      className:'',
+      html:`<div class="store-map-pin${store.in_geofence?' in-zone':''}" style="background:${color}20;border-color:${color}">
+              <span>${categoryIcons[store.category]||'🏬'}</span>
+            </div>`,
+      iconSize:[44,44],iconAnchor:[22,44]
+    });
+    const marker=L.marker([store.lat,store.lng],{icon}).addTo(map);
+    marker.on('click',()=>showStorePanel(store));
+    const mallTag=store.mall?`<br><span style="opacity:.6;font-size:10px">${store.mall}</span>`:'';
+    marker.bindTooltip(`<b>${store.name}</b>${mallTag}`,{permanent:false,direction:'top'});
+    storeMarkers.push(marker);
+  });
+}
+
+async function loadNearbyStores(lat,lng){
+  const radius=document.getElementById('radiusSelect').value;
+  try{
+    const res=await fetch('/api/stores/nearby',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat,lng,radius:parseInt(radius)})});
+    const data=await res.json();
+    if(data.success){
+      currentStores=data.stores;
+      renderStoreList(data.stores);
+      addStoreMarkers(data.stores);
+      document.getElementById('storeCount').textContent=data.stores.length;
+      document.getElementById('locationStatus').innerHTML=`<i class="fas fa-check-circle"></i> ${data.stores.length} stores found`;
+      document.getElementById('userLocCard').style.display='flex';
+      document.getElementById('ulcCoords').textContent=`${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      const inZone=data.stores.some(s=>s.in_geofence);
+      const badge=document.getElementById('geofenceBadge');
+      badge.textContent=inZone?'🟢 In Zone':'Outside Zone';
+      badge.className='ulc-badge'+(inZone?' in-zone':'');
+    }
+  }catch(e){console.error(e);}
+}
+
+function renderStoreList(stores){
+  const list=document.getElementById('storeList');
+  const filtered=currentFilter==='all'?stores:stores.filter(s=>s.category===currentFilter);
+  if(!filtered.length){
+    list.innerHTML='<div class="no-stores">No stores in radius. <button onclick="showAMBMall()" style="color:var(--accent);background:none;border:none;cursor:pointer">Try AMB Mall</button></div>';
+    return;
+  }
+  const byMall={};
+  filtered.forEach(s=>{ const m=s.mall||'Other'; if(!byMall[m])byMall[m]=[]; byMall[m].push(s); });
+  let html='';
+  for(const[mall,ms] of Object.entries(byMall)){
+    html+=`<div class="mall-group-header">${mall}<span class="mall-badge-s">${ms.length}</span></div>`;
+    ms.forEach(s=>{ html+=`<div class="store-list-item${s.in_geofence?' in-geofence':''}" onclick="selectStore('${s.id}')">
+      <div class="sli-emoji">${categoryIcons[s.category]||'🏬'}</div>
+      <div class="sli-info">
+        <div class="sli-name">${s.name}</div>
+        <div class="sli-meta">
+          <span class="sli-dist"><i class="fas fa-ruler"></i> ${s.distance}m</span>
+          <span class="sli-rating"><i class="fas fa-star"></i> ${s.rating}</span>
+          ${s.floor?`<span class="sli-cat">${s.floor}</span>`:''}
+        </div>
+      </div>
+      ${s.in_geofence?'<div class="sli-geofence-badge"><i class="fas fa-circle-nodes"></i></div>':''}
+    </div>`; });
+  }
+  list.innerHTML=html;
+}
+
+async function showStorePanel(store){
+  const panel=document.getElementById('storeDetailPanel');
+  panel.classList.add('open');
+  const res=await fetch(`/api/stores/${store.id}?lat=${userLat||DEMO_LAT}&lng=${userLng||DEMO_LNG}`);
+  const data=await res.json();
+  if(!data.success)return;
+  const s=data.store;
+  const color=s.color||categoryColors[s.category]||'#6366f1';
+  document.getElementById('sdpContent').innerHTML=`
+    <div class="sdp-header">
+      <div class="sdp-emoji">${categoryIcons[s.category]||'🏬'}</div>
+      <div class="sdp-title-area">
+        <h2>${s.name}</h2>
+        <div class="sdp-meta">
+          <span><i class="fas fa-star"></i> ${s.rating}</span>
+          <span><i class="fas fa-ruler"></i> ${s.distance}m</span>
+          ${s.mall?`<span>🏬 ${s.mall}</span>`:''}
+          ${s.floor?`<span>📍 ${s.floor}</span>`:''}
+        </div>
+      </div>
+      ${s.in_geofence?'<div class="sdp-geofence-tag"><i class="fas fa-circle-nodes"></i> In Zone</div>':''}
+    </div>
+    <div class="sdp-address"><i class="fas fa-map-pin"></i> ${s.address}</div>
+    <button style="width:100%;margin:12px 0;padding:10px;border-radius:9px;border:none;color:white;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,${color},${color}88)" onclick="open3DView('${s.id}','${s.name}','${s.category}','${color}')">
+      <i class="fas fa-cube"></i> View 3D Store Layout
+    </button>
+    <h4 class="sdp-section-title">Products</h4>
+    <div class="sdp-products">
+      ${s.products.map(p=>`<div class="sdp-product"><span class="sp-emoji">${p.emoji}</span><span class="sp-name">${p.name}</span><span class="sp-price">₹${p.price}</span></div>`).join('')}
+    </div>
+    <h4 class="sdp-section-title">Active Offers</h4>
+    <div class="sdp-offers">
+      ${s.offers.map(o=>`<div class="sdp-offer-card">
+        <div class="sdp-offer-badge">${o.discount_pct}% OFF</div>
+        <div class="sdp-offer-info">
+          <div class="sdp-offer-title">${o.title}</div>
+          <div class="sdp-offer-desc">${o.description}</div>
+          <div class="sdp-offer-validity"><i class="fas fa-clock"></i> ${o.valid_until}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div class="sdp-actions">
+      <button class="btn-primary" onclick="location.href='/store/${s.id}'"><i class="fas fa-tags"></i> Full Store</button>
+      <button class="btn-ghost" onclick="map.setView([${s.lat},${s.lng}],18)"><i class="fas fa-map-pin"></i> Center</button>
+    </div>`;
+}
+
+function closeStorePanel(){document.getElementById('storeDetailPanel').classList.remove('open');}
+
+async function selectStore(id){
+  const res=await fetch(`/api/stores/${id}?lat=${userLat||DEMO_LAT}&lng=${userLng||DEMO_LNG}`);
+  const data=await res.json();
+  if(data.success){map.setView([data.store.lat,data.store.lng],18);showStorePanel(data.store);}
+}
+
+function locateMe(){
+  document.getElementById('locationStatus').innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Detecting...';
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos=>{ userLat=pos.coords.latitude; userLng=pos.coords.longitude; initMap(userLat,userLng); loadNearbyStores(userLat,userLng); sessionStorage.setItem('userLat',userLat); sessionStorage.setItem('userLng',userLng); },
+      err=>{
+        if(err.code===1){
+          // Permission denied
+          document.getElementById('locationStatus').innerHTML='<i class="fas fa-exclamation-triangle"></i> Location access denied';
+          document.getElementById('mapOverlay').style.display='flex';
+          document.querySelector('#mapOverlay .mo-card h3').textContent='Location access blocked';
+          document.querySelector('#mapOverlay .mo-card p').textContent='Please enable location permission in your browser settings and then click "Detect My Location" again.';
+        } else {
+          useDemoLocation();
+        }
+      }
+    );
+  } else { useDemoLocation(); }
+}
+function useDemoLocation(){ userLat=DEMO_LAT; userLng=DEMO_LNG; initMap(userLat,userLng); loadNearbyStores(userLat,userLng); document.getElementById('locationStatus').innerHTML='<i class="fas fa-map-pin"></i> Demo: College Campus'; }
+function showAMBMall(){ userLat=AMB_LAT; userLng=AMB_LNG; initMap(AMB_LAT,AMB_LNG,17); loadNearbyStores(AMB_LAT,AMB_LNG); document.getElementById('locationStatus').innerHTML='<i class="fas fa-store"></i> AMB Mall, Narsingi'; document.getElementById('locationSearch').value='AMB Mall, Hyderabad'; }
+function refreshStores(){ if(userLat&&userLng) loadNearbyStores(userLat,userLng); }
+function filterCategory(btn,cat){ document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); currentFilter=cat; addStoreMarkers(currentStores); renderStoreList(currentStores); }
+function searchLocation(e){ if(e.key==='Enter') searchLocationBtn(); }
+
+// ── REAL GEOCODING (OSM Nominatim — any place worldwide) ──
+let searchDebounce=null;
+async function onSearchInput(){
+  clearTimeout(searchDebounce);
+  const q=document.getElementById('locationSearch').value.trim();
+  if(q.length<2){closeSearchDropdown();return;}
+  searchDebounce=setTimeout(()=>doSearch(q),350);
+}
+
+async function doSearch(q){
+  const [storeRes, geoRes]=await Promise.allSettled([
+    fetch(`/api/stores/search?q=${encodeURIComponent(q)}`).then(r=>r.json()),
+    fetch(`/api/geocode?q=${encodeURIComponent(q)}`).then(r=>r.json())
+  ]);
+  const stores=(storeRes.status==='fulfilled'&&storeRes.value.stores)||[];
+  const locs=(geoRes.status==='fulfilled'&&geoRes.value.locations)||[];
+  showSearchDropdown(stores,locs,q);
+}
+
+function showSearchDropdown(stores,locations,query){
+  const dd=document.getElementById('searchDropdown');
+  let html='';
+
+  // Quick location matches
+  const quick=[
+    {name:'AMB Mall',sub:'Narsingi, Hyderabad',lat:17.4156,lng:78.4347,icon:'🏬'},
+    {name:'College Campus',sub:'Demo Location, Hyderabad',lat:17.4401,lng:78.4987,icon:'🎓'},
+  ];
+  quick.filter(l=>l.name.toLowerCase().includes(query.toLowerCase())).forEach(loc=>{
+    html+=`<div class="sd-item" onclick="goToLocation(${loc.lat},${loc.lng},'${loc.name}')">
+      <span class="sd-item-icon">${loc.icon}</span>
+      <div><div class="sd-item-name">${loc.name}</div><div class="sd-item-sub">${loc.sub}</div></div>
+    </div>`;
+  });
+
+  // Store DB results
+  if(stores.length){
+    html+=`<div class="mall-group-header">Stores in database</div>`;
+    stores.slice(0,4).forEach(s=>{
+      html+=`<div class="sd-item" onclick="goToStoreLocation('${s.id}',${s.lat},${s.lng},'${s.name}')">
+        <span class="sd-item-icon">${categoryIcons[s.category]||'🏬'}</span>
+        <div><div class="sd-item-name">${s.name}</div><div class="sd-item-sub">${s.mall||''} ${s.floor?'· '+s.floor:''}</div></div>
+      </div>`;
+    });
+  }
+
+  // OSM / real geocoding results (any place on Earth)
+  if(locations.length){
+    html+=`<div class="mall-group-header">Places found</div>`;
+    locations.slice(0,5).forEach(loc=>{
+      const shortName=(loc.display_name||'').split(',')[0];
+      const shortSub=(loc.display_name||'').split(',').slice(1,3).join(',');
+      html+=`<div class="sd-item" onclick="goToLocation(${loc.lat},${loc.lng},'${shortName.replace(/'/g,'').substring(0,40)}')">
+        <span class="sd-item-icon">📍</span>
+        <div><div class="sd-item-name">${shortName}</div><div class="sd-item-sub">${shortSub}</div></div>
+      </div>`;
+    });
+  }
+
+  if(!html) html=`<div class="sd-item"><span class="sd-item-icon">🔍</span><div><div class="sd-item-name">No results — searching...</div></div></div>`;
+  dd.innerHTML=html;
+  dd.classList.add('open');
+}
+
+function closeSearchDropdown(){document.getElementById('searchDropdown').classList.remove('open');}
+
+function goToLocation(lat,lng,name){
+  userLat=lat; userLng=lng;
+  if(!map) initMap(lat,lng,16);
+  else { map.setView([lat,lng],16); document.getElementById('mapOverlay').style.display='none'; setUserMarker(lat,lng); }
+  loadNearbyStores(lat,lng);
+  document.getElementById('locationSearch').value=name;
+  document.getElementById('locationStatus').innerHTML=`<i class="fas fa-map-pin"></i> ${name}`;
+  closeSearchDropdown();
+}
+
+function goToStoreLocation(id,lat,lng,name){goToLocation(lat,lng,name);setTimeout(()=>selectStore(id),600);}
+
+async function searchLocationBtn(){
+  const q=document.getElementById('locationSearch').value.trim();
+  if(!q)return;
+  const ql=q.toLowerCase();
+  if(ql.includes('amb mall')||ql==='amb'){showAMBMall();closeSearchDropdown();return;}
+  if(ql.includes('campus')||ql.includes('college')){useDemoLocation();closeSearchDropdown();return;}
+  try{
+    const res=await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+    const data=await res.json();
+    if(data.locations&&data.locations.length){
+      const loc=data.locations[0];
+      goToLocation(loc.lat,loc.lng,q);
+    }
+  }catch(e){useDemoLocation();}
+}
+
+async function checkGeofence(){
+  if(!userLat||!userLng){useDemoLocation();return;}
+  const res=await fetch('/api/geofence/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat:userLat,lng:userLng})});
+  const data=await res.json();
+  if(data.triggered.length){showGeofenceAlert(data.triggered[0].store_name,data.triggered[0].notification_body);}
+  else alert('Not within any geofence zone. Try AMB Mall location.');
+}
+
+// ── 3D STORE VIEW ────────────────────────────────────────
+let scene3d,camera3d,renderer3d,animFrame3d,isDragging3d=false,prevMouseX=0,prevMouseY=0,rotY=0,rotX=0;
+function open3DView(sid,name,cat,color){
+  document.getElementById('view3dModal').classList.add('open');
+  document.getElementById('view3dTitle').textContent='🏬 3D View — '+name;
+  init3DScene(cat,color);
+}
+function close3DView(){document.getElementById('view3dModal').classList.remove('open');if(animFrame3d)cancelAnimationFrame(animFrame3d);if(renderer3d){renderer3d.dispose();renderer3d=null;}}
+function init3DScene(cat,color){
+  if(animFrame3d)cancelAnimationFrame(animFrame3d);
+  const canvas=document.getElementById('view3dCanvas');
+  const W=canvas.parentElement.clientWidth,H=canvas.parentElement.clientHeight;
+  canvas.width=W;canvas.height=H;
+  scene3d=new THREE.Scene();scene3d.background=new THREE.Color(0x050914);scene3d.fog=new THREE.Fog(0x050914,20,60);
+  camera3d=new THREE.PerspectiveCamera(55,W/H,.1,100);camera3d.position.set(0,6,12);camera3d.lookAt(0,0,0);
+  if(renderer3d)renderer3d.dispose();
+  renderer3d=new THREE.WebGLRenderer({canvas,antialias:true});renderer3d.setSize(W,H);renderer3d.shadowMap.enabled=true;
+  const hx=parseInt(color.replace('#',''),16);
+  scene3d.add(new THREE.AmbientLight(0x334466,.8));
+  const dl=new THREE.DirectionalLight(0xffffff,1.2);dl.position.set(5,10,5);dl.castShadow=true;scene3d.add(dl);
+  scene3d.add(new THREE.PointLight(hx,2,15)).position.set(0,4,0);
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({color:0x0d1424,roughness:.8}));fl.rotation.x=-Math.PI/2;fl.receiveShadow=true;scene3d.add(fl);
+  scene3d.add(new THREE.GridHelper(30,30,0x1e2a40,0x1e2a40));
+  build3DStore(cat,color,hx);
+  rotY=0;rotX=.3;
+  const g=scene3d.children.find(c=>c.isGroup);
+  function animate(){animFrame3d=requestAnimationFrame(animate);if(!isDragging3d&&g)rotY+=.005;if(g){g.rotation.y=rotY;g.rotation.x=rotX;}renderer3d.render(scene3d,camera3d);}
+  animate();
+  canvas.onmousedown=e=>{isDragging3d=true;prevMouseX=e.clientX;prevMouseY=e.clientY;};
+  canvas.onmouseup=()=>{isDragging3d=false;};
+  canvas.onmousemove=e=>{if(!isDragging3d)return;rotY+=(e.clientX-prevMouseX)*.01;rotX=Math.max(-.8,Math.min(.8,rotX+(e.clientY-prevMouseY)*.005));prevMouseX=e.clientX;prevMouseY=e.clientY;};
+}
+function build3DStore(cat,color,hx){
+  const g=new THREE.Group();
+  const mat=(c,r=.4,m=.3)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+  const box=(w,h,d,mt)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt);
+  const gm=new THREE.MeshStandardMaterial({color:hx,transparent:true,opacity:.3,roughness:.1,metalness:.9});
+  const wm=mat(0x111827,.7,.1),am=mat(hx,.3,.5);
+  [box(8,5,.2,wm)].forEach((m,_)=>{m.position.set(0,2.5,-4);g.add(m);});
+  const lw=box(.2,5,8,wm);lw.position.set(-4,2.5,0);g.add(lw);
+  const rw=box(.2,5,8,wm);rw.position.set(4,2.5,0);g.add(rw);
+  box(8.4,.2,8.4,am).position.set(0,5,0);g.add(g.children[g.children.length-1]||new THREE.Object3D());
+  const rf=new THREE.Mesh(new THREE.BoxGeometry(8.4,.2,8.4),am);rf.position.set(0,5,0);g.add(rf);
+  const gls1=box(2.5,4,.1,gm);gls1.position.set(-1.8,2,4);g.add(gls1);
+  const gls2=box(2.5,4,.1,gm);gls2.position.set(1.8,2,4);g.add(gls2);
+  const dr=box(1,3.2,.15,mat(hx,.2,.8));dr.position.set(0,1.6,4.05);g.add(dr);
+  const sg=box(5,.6,.3,mat(hx,.2,.9));sg.position.set(0,4.8,4.1);g.add(sg);
+  if(['bakery','cafe'].includes(cat)){
+    const ct=box(4,1.2,1.5,mat(0x1a2235));ct.position.set(0,.6,-1.5);g.add(ct);
+    const ctt=box(4.1,.1,1.6,am);ctt.position.set(0,1.25,-1.5);g.add(ctt);
+    for(let i=0;i<3;i++){const s=box(6,.1,.8,mat(0x243050));s.position.set(0,1.5+i*1.2,-3.5);g.add(s);}
+  } else if(['fashion','lifestyle'].includes(cat)){
+    for(let i=-1;i<=1;i++){
+      const r=box(.08,1.8,2.5,mat(0x374151,.3,.8));r.position.set(i*2.5,2.5,-1);g.add(r);
+      const b=box(2.4,.08,.08,mat(0x374151,.3,.8));b.position.set(i*2.5,3.4,-1);g.add(b);
+      for(let j=-1;j<=1;j++){const c=box(.3,.8,.06,mat(hx,.9,0));c.position.set(i*2.5+j*.5,3,-1);g.add(c);}
+    }
+  } else if(cat==='electronics'){
+    for(let i=-1;i<=1;i++){
+      const t=box(2,.9,1,mat(0x1a2235));t.position.set(i*3,.45,-1);g.add(t);
+      const tt=box(2.1,.05,1.1,am);tt.position.set(i*3,.92,-1);g.add(tt);
+      const sc=box(.75,.5,.03,mat(0x1d4ed8,.1,.8));sc.position.set(i*3,1.22,-.95);g.add(sc);
+    }
+  } else if(cat==='entertainment'){
+    for(let row=0;row<3;row++)for(let col=-2;col<=2;col++){const s=box(.7,.8,.7,mat(hx,.8,.1));s.position.set(col*.9,.5,-1.5-row*1.2);g.add(s);}
+    const sc=box(5.5,2.5,.1,mat(0xe2e8f0,.9,0));sc.position.set(0,2.8,-3.8);g.add(sc);
+    const sgl=new THREE.PointLight(0x4488ff,.5,5);sgl.position.set(0,2.8,-3.5);g.add(sgl);
+  } else if(cat==='beauty'){
+    const ctr=box(5,1,1.2,mat(0x1a2235));ctr.position.set(0,.5,-1.5);g.add(ctr);
+    for(let i=-2;i<=2;i++){const bt=box(.2,.5,.15,mat(hx,.3,.7));bt.position.set(i*.7,1.25,-1.5);g.add(bt);}
+  } else {
+    const sh=box(6.5,2.5,.8,mat(0x1a2235));sh.position.set(0,1.25,-3.2);g.add(sh);
+    for(let i=0;i<3;i++){const s=box(6.6,.06,.8,mat(0x243050));s.position.set(0,.6+i*.9,-3.2);g.add(s);}
+  }
+  const nmat=new THREE.MeshStandardMaterial({color:hx,emissive:hx,emissiveIntensity:2});
+  [[-2],[1]].forEach(([z])=>{const n=new THREE.Mesh(new THREE.BoxGeometry(7,.05,.05),nmat);n.position.set(0,4.85,z);g.add(n);});
+  scene3d.add(g);
+}
+function rotate3DLeft(){rotY-=.5;}function rotate3DRight(){rotY+=.5;}function reset3DView(){rotY=0;rotX=.3;}
+
+// Close dropdown outside click
+document.addEventListener('click',e=>{if(!e.target.closest('.map-search-wrap'))closeSearchDropdown();});
+
+// Init
+window.onload=()=>{
+  const sLat=sessionStorage.getItem('userLat');
+  const sLng=sessionStorage.getItem('userLng');
+  if(sLat&&sLng){userLat=parseFloat(sLat);userLng=parseFloat(sLng);initMap(userLat,userLng);loadNearbyStores(userLat,userLng);}
+  else locateMe();
+  if(Notification.permission==='default')Notification.requestPermission();
+};
+</script>
+{% endblock %}

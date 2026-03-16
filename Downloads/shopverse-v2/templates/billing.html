@@ -1,0 +1,696 @@
+{% extends "base.html" %}
+{% block title %}Checkout{% endblock %}
+{% block extra_css %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<style>
+.billing-page{padding:90px 24px 40px;max-width:1200px;margin:0 auto;}
+.billing-header{margin-bottom:28px;}
+.billing-header h1{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.5px;}
+.billing-header p{color:var(--text-2);font-size:14px;margin-top:4px;}
+.billing-grid{display:grid;grid-template-columns:1fr 420px;gap:24px;}
+/* Cart panel */
+.cart-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);overflow:hidden;}
+.cp-header{padding:18px 20px;background:var(--bg-card2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.cp-header h2{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.voice-cart-btn{padding:7px 14px;border-radius:8px;background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;}
+.voice-cart-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(16,185,129,.4);}
+.cart-body{padding:16px;}
+.cart-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.cart-item:last-child{border:none;}
+.ci-emoji{font-size:28px;width:40px;text-align:center;flex-shrink:0;}
+.ci-info{flex:1;min-width:0;}
+.ci-name{font-size:14px;font-weight:600;}
+.ci-store{font-size:11px;color:var(--text-3);margin-top:1px;}
+.ci-offer{font-size:11px;color:var(--green);display:flex;align-items:center;gap:4px;margin-top:3px;}
+.ci-qty{display:flex;align-items:center;gap:8px;margin-top:6px;}
+.qty-btn{width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card2);color:var(--text-1);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.qty-btn:hover{border-color:var(--accent);color:var(--accent);}
+.qty-num{font-size:13px;font-weight:600;min-width:16px;text-align:center;}
+.ci-pricing{text-align:right;flex-shrink:0;}
+.ci-orig{font-size:11px;color:var(--text-3);text-decoration:line-through;}
+.ci-final{font-size:15px;font-weight:700;color:var(--text-1);}
+.ci-remove{background:none;border:none;color:var(--text-3);cursor:pointer;padding:4px;font-size:14px;border-radius:4px;transition:color .15s;}
+.ci-remove:hover{color:var(--red);}
+.empty-cart{text-align:center;padding:48px 20px;color:var(--text-3);}
+.empty-cart i{font-size:40px;margin-bottom:12px;display:block;}
+.add-demo-row{padding:14px 16px;display:flex;gap:8px;flex-wrap:wrap;}
+.add-demo-btn{padding:8px 14px;border-radius:8px;background:var(--bg-card2);border:1px solid var(--border);color:var(--text-2);font-size:12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;}
+.add-demo-btn:hover{border-color:var(--accent);color:var(--accent);}
+/* Voice Cart Status */
+.voice-cart-status{padding:12px 16px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:10px;margin:14px 16px 0;font-size:12px;color:#10b981;display:none;align-items:center;gap:8px;}
+.voice-cart-status.show{display:flex;}
+/* Checkout panel */
+.checkout-panel{display:flex;flex-direction:column;gap:16px;}
+/* Order summary */
+.order-summary{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);overflow:hidden;}
+.os-header{padding:16px 20px;background:var(--bg-card2);border-bottom:1px solid var(--border);}
+.os-header h3{font-size:15px;font-weight:700;}
+.os-body{padding:16px 20px;}
+.os-row{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--text-2);}
+.os-row.discount{color:var(--green);}
+.os-row.total{font-size:16px;font-weight:700;color:var(--text-1);padding-top:10px;border-top:1px solid var(--border);margin-top:6px;}
+.os-savings-badge{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:10px 14px;text-align:center;font-size:13px;color:var(--green);margin-top:12px;}
+/* Payment methods */
+.payment-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);overflow:hidden;}
+.pp-header{padding:16px 20px;background:var(--bg-card2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.pp-header h3{font-size:15px;font-weight:700;}
+.secure-badge{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--green);}
+.pp-body{padding:16px;}
+/* Payment method cards */
+.payment-methods{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.pm-card{padding:14px;border-radius:12px;border:2px solid var(--border);background:var(--bg-card2);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;}
+.pm-card:hover{border-color:var(--accent);}
+.pm-card.active{border-color:var(--accent);background:rgba(99,102,241,0.08);}
+.pm-icon{width:40px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.pm-name{font-size:12px;font-weight:600;}
+.pm-sub{font-size:10px;color:var(--text-3);}
+/* Payment forms */
+.payment-form{display:none;}
+.payment-form.active{display:block;}
+/* Card form */
+.card-form .form-group{margin-bottom:14px;}
+.card-form label{font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block;}
+.card-form input{width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-1);font-size:13px;font-family:inherit;transition:border .2s;}
+.card-form input:focus{border-color:var(--accent);outline:none;}
+.card-form .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.card-icons{display:flex;gap:6px;margin-bottom:12px;}
+.card-icon-badge{padding:4px 10px;border-radius:5px;border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text-2);}
+/* QR Code */
+.qr-section{text-align:center;padding:8px 0;}
+.qr-container{background:white;padding:16px;border-radius:14px;display:inline-block;margin:12px auto;}
+.qr-code{width:160px;height:160px;}
+.qr-label{font-size:12px;color:var(--text-3);margin-top:10px;}
+.qr-amount{font-size:18px;font-weight:800;color:var(--accent);margin-top:4px;}
+.qr-timer{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--orange);margin-top:8px;}
+/* UPI */
+.upi-section{padding:8px 0;}
+.upi-apps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.upi-app{padding:12px 8px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card2);text-align:center;cursor:pointer;transition:all .2s;}
+.upi-app:hover{border-color:var(--accent);}
+.upi-app.selected{border-color:var(--accent);background:rgba(99,102,241,0.08);}
+.upi-app-icon{font-size:24px;margin-bottom:4px;}
+.upi-app-name{font-size:10px;font-weight:600;color:var(--text-2);}
+.upi-id-input{margin-top:12px;}
+/* Amazon Pay */
+.amazon-section{text-align:center;padding:8px 0;}
+.amazon-logo{font-size:28px;font-weight:800;margin-bottom:6px;color:var(--orange);}
+.amazon-logo span{color:var(--text-1);}
+.amazon-benefits{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:14px 0;}
+.ab-chip{padding:5px 10px;border-radius:20px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);font-size:11px;color:var(--orange);}
+/* Checkout button */
+.checkout-btn{width:100%;padding:16px;border-radius:12px;border:none;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;margin-top:4px;}
+.checkout-btn.ready{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;box-shadow:0 4px 20px rgba(99,102,241,.4);}
+.checkout-btn.ready:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(99,102,241,.5);}
+.checkout-btn.disabled{background:var(--bg-card2);color:var(--text-3);cursor:not-allowed;}
+/* Receipt modal */
+.receipt-modal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;}
+.receipt-modal.open{display:flex;}
+.receipt-box{width:min(480px,92vw);background:var(--bg-card);border:1px solid var(--border-lg);border-radius:24px;overflow:hidden;max-height:90vh;overflow-y:auto;}
+.rb-success{padding:28px;text-align:center;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(16,185,129,0.06));border-bottom:1px solid var(--border);}
+.rb-check{width:64px;height:64px;border-radius:50%;background:rgba(34,197,94,0.15);color:var(--green);font-size:28px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+.rb-title{font-size:20px;font-weight:800;}
+.rb-order{font-size:13px;color:var(--text-3);margin-top:4px;}
+.rb-amount{font-size:28px;font-weight:800;color:var(--green);margin:8px 0;}
+.rb-saved{font-size:13px;color:var(--text-2);}
+.rb-body{padding:20px;}
+.rb-row{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);}
+.rb-row:last-child{border:none;}
+.rb-label{color:var(--text-3);}
+.rb-payment-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);font-size:12px;color:var(--accent);}
+.rb-actions{padding:0 20px 20px;display:flex;gap:10px;}
+.rb-actions button{flex:1;padding:12px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;}
+.voice-listening-pulse{animation:vPulse 1s ease-in-out infinite;}
+@keyframes vPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="billing-page">
+  <div class="billing-header">
+    <h1><i class="fas fa-receipt" style="color:var(--accent)"></i> Smart Checkout</h1>
+    <p>Voice-powered cart management · Multiple payment options · AI-generated discounts applied</p>
+  </div>
+
+  <div class="billing-grid">
+    <!-- LEFT: CART -->
+    <div class="cart-panel">
+      <div class="cp-header">
+        <h2><i class="fas fa-shopping-cart" style="color:var(--accent)"></i> Your Cart <span id="cartCountBadge" style="background:var(--accent);color:white;font-size:11px;padding:2px 8px;border-radius:10px;margin-left:4px;">0</span></h2>
+        <button class="voice-cart-btn" onclick="startVoiceCart()">
+          <i class="fas fa-microphone" id="voiceCartIcon"></i>
+          <span id="voiceCartText">Voice Add Item</span>
+        </button>
+      </div>
+      <div class="voice-cart-status" id="voiceCartStatus">
+        <i class="fas fa-microphone voice-listening-pulse"></i>
+        <span id="voiceCartMsg">Listening for items...</span>
+      </div>
+      <div class="cart-body" id="cartBody"></div>
+      <div class="add-demo-row">
+        <button class="add-demo-btn" onclick="addItem({id:'p1',name:'Chocolate Cake',emoji:'🎂',original_price:200,discount_pct:20,discount_amount:40,final_price:160,store:'Campus Bakery',offer:'AI: 20% OFF'})">🎂 Cake</button>
+        <button class="add-demo-btn" onclick="addItem({id:'p6',name:'Cappuccino',emoji:'☕',original_price:120,discount_pct:25,discount_amount:30,final_price:90,store:'Coffee Lab',offer:'Combo -25%'})">☕ Coffee</button>
+        <button class="add-demo-btn" onclick="addItem({id:'z1',name:\"Zara Jeans\",emoji:'👖',original_price:3990,discount_pct:30,discount_amount:1197,final_price:2793,store:'Zara AMB Mall',offer:'Season Sale -30%'})">👖 Zara</button>
+        <button class="add-demo-btn" onclick="addItem({id:'sb1',name:'Frappuccino',emoji:'🧋',original_price:380,discount_pct:25,discount_amount:95,final_price:285,store:'Starbucks AMB',offer:'Frappy Hour -25%'})">🧋 Starbucks</button>
+        <button class="add-demo-btn" onclick="addItem({id:'cin1',name:'Movie Ticket',emoji:'🎬',original_price:200,discount_pct:20,discount_amount:40,final_price:160,store:'Cinemax AMB',offer:'Movie Monday -20%'})">🎬 Cinema</button>
+        <button class="add-demo-btn" onclick="addItem({id:'fh1',name:'Biryani',emoji:'🍛',original_price:250,discount_pct:15,discount_amount:37,final_price:213,store:'Food Hall AMB',offer:'Biryani Special -15%'})">🍛 Biryani</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: CHECKOUT -->
+    <div class="checkout-panel">
+      <!-- Order Summary -->
+      <div class="order-summary">
+        <div class="os-header"><h3><i class="fas fa-file-invoice"></i> Order Summary</h3></div>
+        <div class="os-body">
+          <div class="os-row"><span>Subtotal</span><span id="osSubtotal">₹0</span></div>
+          <div class="os-row discount"><span>Total Savings</span><span id="osDiscount">-₹0</span></div>
+          <div class="os-row"><span>Platform Fee</span><span>₹0</span></div>
+          <div class="os-row total"><span>TOTAL</span><span id="osTotal">₹0</span></div>
+          <div class="os-savings-badge" id="osSavings" style="display:none">
+            🎉 You're saving <b id="osSavingsAmt">₹0</b> with ShopVerseAI offers!
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Methods -->
+      <div class="payment-panel">
+        <div class="pp-header">
+          <h3><i class="fas fa-lock"></i> Payment Method</h3>
+          <div class="secure-badge"><i class="fas fa-shield-halved"></i> 256-bit SSL</div>
+        </div>
+        <div class="pp-body">
+          <!-- Method selector -->
+          <div class="payment-methods">
+            <div class="pm-card active" id="pm-card" onclick="selectPayment('card')">
+              <div class="pm-icon" style="background:linear-gradient(135deg,#1a56db,#1e429f)">💳</div>
+              <div><div class="pm-name">Card</div><div class="pm-sub">Debit / Credit</div></div>
+            </div>
+            <div class="pm-card" id="pm-qr" onclick="selectPayment('qr')">
+              <div class="pm-icon" style="background:linear-gradient(135deg,#5b21b6,#7c3aed)">📷</div>
+              <div><div class="pm-name">QR Code</div><div class="pm-sub">Scan & Pay</div></div>
+            </div>
+            <div class="pm-card" id="pm-upi" onclick="selectPayment('upi')">
+              <div class="pm-icon" style="background:linear-gradient(135deg,#1d4ed8,#2563eb)">🔗</div>
+              <div><div class="pm-name">UPI</div><div class="pm-sub">BHIM / GPay / PhonePe</div></div>
+            </div>
+            <div class="pm-card" id="pm-amazon" onclick="selectPayment('amazon')">
+              <div class="pm-icon" style="background:linear-gradient(135deg,#92400e,#b45309)">🛒</div>
+              <div><div class="pm-name">Amazon Pay</div><div class="pm-sub">Instant checkout</div></div>
+            </div>
+          </div>
+
+          <!-- Card Form -->
+          <div class="payment-form card-form active" id="form-card">
+            <div class="card-icons">
+              <span class="card-icon-badge" style="color:#1a56db">VISA</span>
+              <span class="card-icon-badge" style="color:#e5202e">MASTER</span>
+              <span class="card-icon-badge" style="color:#f59e0b">AMEX</span>
+              <span class="card-icon-badge" style="color:#ef4444">RuPay</span>
+            </div>
+            <div class="form-group">
+              <label>Card Number</label>
+              <input type="text" id="cardNumber" placeholder="1234  5678  9012  3456" maxlength="19" oninput="formatCardNumber(this)">
+            </div>
+            <div class="form-group">
+              <label>Cardholder Name</label>
+              <input type="text" id="cardName" placeholder="Name on card">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Expiry Date</label>
+                <input type="text" id="cardExpiry" placeholder="MM / YY" maxlength="7" oninput="formatExpiry(this)">
+              </div>
+              <div class="form-group">
+                <label>CVV</label>
+                <input type="password" id="cardCvv" placeholder="•••" maxlength="4">
+              </div>
+            </div>
+          </div>
+
+          <!-- QR Code Form -->
+          <div class="payment-form" id="form-qr">
+            <div class="qr-section">
+              <p style="font-size:13px;color:var(--text-2);margin-bottom:12px">Scan QR to pay instantly via any UPI app</p>
+              <div class="qr-container">
+                <canvas id="qrCanvas" class="qr-code" width="160" height="160"></canvas>
+              </div>
+              <div class="qr-label">Valid for</div>
+              <div class="qr-timer"><i class="fas fa-clock"></i> <span id="qrTimer">05:00</span></div>
+              <div class="qr-amount" id="qrAmount">₹0</div>
+              <p style="font-size:11px;color:var(--text-3);margin-top:8px">Accepted: GPay, PhonePe, Paytm, BHIM & all UPI apps</p>
+            </div>
+          </div>
+
+          <!-- UPI Form -->
+          <div class="payment-form" id="form-upi">
+            <div class="upi-section">
+              <p style="font-size:13px;color:var(--text-2);margin-bottom:12px">Choose your UPI app</p>
+              <div class="upi-apps">
+                <div class="upi-app selected" onclick="selectUpiApp(this,'GPay')">
+                  <div class="upi-app-icon">🔵</div>
+                  <div class="upi-app-name">Google Pay</div>
+                </div>
+                <div class="upi-app" onclick="selectUpiApp(this,'PhonePe')">
+                  <div class="upi-app-icon">🟣</div>
+                  <div class="upi-app-name">PhonePe</div>
+                </div>
+                <div class="upi-app" onclick="selectUpiApp(this,'Paytm')">
+                  <div class="upi-app-icon">🔷</div>
+                  <div class="upi-app-name">Paytm</div>
+                </div>
+                <div class="upi-app" onclick="selectUpiApp(this,'BHIM')">
+                  <div class="upi-app-icon">🇮🇳</div>
+                  <div class="upi-app-name">BHIM UPI</div>
+                </div>
+                <div class="upi-app" onclick="selectUpiApp(this,'Cred')">
+                  <div class="upi-app-icon">⚫</div>
+                  <div class="upi-app-name">CRED</div>
+                </div>
+                <div class="upi-app" onclick="selectUpiApp(this,'AmazonPay UPI')">
+                  <div class="upi-app-icon">🛒</div>
+                  <div class="upi-app-name">Amazon UPI</div>
+                </div>
+              </div>
+              <div class="upi-id-input">
+                <label style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block;">Or enter UPI ID</label>
+                <input type="text" id="upiId" placeholder="yourname@upi" style="width:100%;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-1);font-size:13px;font-family:inherit;">
+              </div>
+            </div>
+          </div>
+
+          <!-- Amazon Pay Form -->
+          <div class="payment-form" id="form-amazon">
+            <div class="amazon-section">
+              <div class="amazon-logo">amazon <span>pay</span></div>
+              <p style="font-size:13px;color:var(--text-2)">Pay with your Amazon account balance & rewards</p>
+              <div class="amazon-benefits">
+                <span class="ab-chip">💰 5% cashback</span>
+                <span class="ab-chip">⚡ 1-tap payment</span>
+                <span class="ab-chip">🔒 A-to-Z Protection</span>
+                <span class="ab-chip">🎁 Reward points</span>
+              </div>
+              <div style="background:var(--bg-card2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:left;margin-top:8px;">
+                <div style="font-size:12px;color:var(--text-3);margin-bottom:4px;">Logged in as</div>
+                <div style="font-size:14px;font-weight:600;">demo@smartaisle.com</div>
+                <div style="font-size:12px;color:var(--green);margin-top:4px;">Balance: ₹1,250 available</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Checkout Button -->
+          <button class="checkout-btn disabled" id="checkoutBtn" onclick="processCheckout()">
+            <i class="fas fa-lock"></i> <span id="checkoutBtnText">Add items to checkout</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS RECEIPT MODAL -->
+<div class="receipt-modal" id="receiptModal">
+  <div class="receipt-box">
+    <div class="rb-success">
+      <div class="rb-check"><i class="fas fa-check"></i></div>
+      <div class="rb-title">Payment Successful! 🎉</div>
+      <div class="rb-order" id="rbOrder">Order #—</div>
+      <div class="rb-amount" id="rbAmount">₹0</div>
+      <div class="rb-saved" id="rbSaved">You saved ₹0 with ShopVerseAI!</div>
+    </div>
+    <div class="rb-body">
+      <div class="rb-row"><span class="rb-label">Payment Method</span><span id="rbMethod"><span class="rb-payment-badge">💳 Card</span></span></div>
+      <div class="rb-row"><span class="rb-label">Date & Time</span><span id="rbDate">—</span></div>
+      <div class="rb-row"><span class="rb-label">Items</span><span id="rbItems">0</span></div>
+      <div class="rb-row"><span class="rb-label">ShopVerseAI Points Earned</span><span style="color:var(--accent)" id="rbPoints">+0 pts</span></div>
+      <div id="rbItemsList" style="margin-top:14px;"></div>
+    </div>
+    <div class="rb-actions">
+      <button style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-1);" onclick="closeReceipt()">Close</button>
+      <button style="background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:white;" onclick="location.href='/dashboard'">My Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let cartItems=[];
+let selectedPayment='card';
+let selectedUpiApp='GPay';
+let qrTimerInterval=null;
+
+// ── CART ──────────────────────────────────────────────────
+function addItem(item){
+  const existing=cartItems.find(i=>i.id===item.id);
+  if(existing){existing.qty=(existing.qty||1)+1;}
+  else{cartItems.push({...item,qty:1});}
+  renderCart();
+  updateSummary();
+  showToast(`${item.emoji} ${item.name} added to cart!`);
+}
+
+function removeItem(id){cartItems=cartItems.filter(i=>i.id!==id);renderCart();updateSummary();}
+function changeQty(id,delta){
+  const item=cartItems.find(i=>i.id===id);
+  if(!item)return;
+  item.qty=(item.qty||1)+delta;
+  if(item.qty<=0){removeItem(id);return;}
+  renderCart();updateSummary();
+}
+
+function renderCart(){
+  const body=document.getElementById('cartBody');
+  const badge=document.getElementById('cartCountBadge');
+  const total=cartItems.reduce((s,i)=>s+(i.qty||1),0);
+  badge.textContent=total;
+  if(!cartItems.length){
+    body.innerHTML='<div class="empty-cart"><i class="fas fa-cart-shopping"></i><p>Cart is empty</p><p style="font-size:12px;color:var(--text-3)">Add items using the buttons below or try Voice Add</p></div>';
+    document.getElementById('checkoutBtn').className='checkout-btn disabled';
+    document.getElementById('checkoutBtnText').textContent='Add items to checkout';
+    return;
+  }
+  body.innerHTML=cartItems.map(item=>`
+    <div class="cart-item">
+      <div class="ci-emoji">${item.emoji}</div>
+      <div class="ci-info">
+        <div class="ci-name">${item.name}</div>
+        <div class="ci-store">${item.store}</div>
+        ${item.offer?`<div class="ci-offer"><i class="fas fa-tag" style="font-size:9px"></i> ${item.offer}</div>`:''}
+        <div class="ci-qty">
+          <button class="qty-btn" onclick="changeQty('${item.id}',-1)">−</button>
+          <span class="qty-num">${item.qty||1}</span>
+          <button class="qty-btn" onclick="changeQty('${item.id}',1)">+</button>
+        </div>
+      </div>
+      <div class="ci-pricing">
+        ${item.discount_pct>0?`<div class="ci-orig">₹${item.original_price*(item.qty||1)}</div>`:''}
+        <div class="ci-final">₹${item.final_price*(item.qty||1)}</div>
+      </div>
+      <button class="ci-remove" onclick="removeItem('${item.id}')"><i class="fas fa-times"></i></button>
+    </div>
+  `).join('');
+  document.getElementById('checkoutBtn').className='checkout-btn ready';
+  document.getElementById('checkoutBtnText').textContent=`Pay ₹${getTotal()} Now`;
+}
+
+function updateSummary(){
+  const subtotal=cartItems.reduce((s,i)=>s+i.original_price*(i.qty||1),0);
+  const discount=cartItems.reduce((s,i)=>s+i.discount_amount*(i.qty||1),0);
+  const total=subtotal-discount;
+  document.getElementById('osSubtotal').textContent=`₹${subtotal.toLocaleString()}`;
+  document.getElementById('osDiscount').textContent=`-₹${discount.toLocaleString()}`;
+  document.getElementById('osTotal').textContent=`₹${total.toLocaleString()}`;
+  const savingsBadge=document.getElementById('osSavings');
+  if(discount>0){savingsBadge.style.display='block';document.getElementById('osSavingsAmt').textContent=`₹${discount.toLocaleString()}`;}
+  else savingsBadge.style.display='none';
+  document.getElementById('qrAmount').textContent=`₹${total.toLocaleString()}`;
+  if(cartItems.length){
+    document.getElementById('checkoutBtn').className='checkout-btn ready';
+    document.getElementById('checkoutBtnText').textContent=`Pay ₹${total.toLocaleString()} Now`;
+  }
+  // Regenerate QR if on QR tab
+  if(selectedPayment==='qr') generateQR(total);
+}
+
+function getTotal(){return cartItems.reduce((s,i)=>s+(i.final_price*(i.qty||1)),0).toLocaleString();}
+
+// ── PAYMENT METHODS ───────────────────────────────────────
+function selectPayment(method){
+  selectedPayment=method;
+  document.querySelectorAll('.pm-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById(`pm-${method}`).classList.add('active');
+  document.querySelectorAll('.payment-form').forEach(f=>f.classList.remove('active'));
+  document.getElementById(`form-${method}`).classList.add('active');
+  if(method==='qr'){
+    const total=cartItems.reduce((s,i)=>s+(i.final_price*(i.qty||1)),0);
+    generateQR(total);
+    startQRTimer();
+  } else {
+    if(qrTimerInterval)clearInterval(qrTimerInterval);
+  }
+}
+
+function selectUpiApp(el,app){
+  selectedUpiApp=app;
+  document.querySelectorAll('.upi-app').forEach(a=>a.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ── QR CODE GENERATOR (canvas-drawn) ─────────────────────
+function generateQR(amount){
+  const canvas=document.getElementById('qrCanvas');
+  const ctx=canvas.getContext('2d');
+  const size=160;canvas.width=size;canvas.height=size;
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,size,size);
+  // Draw a realistic-looking QR pattern
+  ctx.fillStyle='#000000';
+  const modules=21;const ms=size/modules;
+  // Position markers
+  function drawFinder(x,y){
+    ctx.fillStyle='#000';ctx.fillRect(x*ms,y*ms,7*ms,7*ms);
+    ctx.fillStyle='#fff';ctx.fillRect((x+1)*ms,(y+1)*ms,5*ms,5*ms);
+    ctx.fillStyle='#000';ctx.fillRect((x+2)*ms,(y+2)*ms,3*ms,3*ms);
+  }
+  drawFinder(0,0);drawFinder(14,0);drawFinder(0,14);
+  // Timing patterns
+  ctx.fillStyle='#000';
+  for(let i=8;i<13;i+=2){ctx.fillRect(i*ms,6*ms,ms,ms);ctx.fillRect(6*ms,i*ms,ms,ms);}
+  // Data area: pseudo-random based on amount
+  const seed=amount||1;
+  let s=seed;
+  function rand(){s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff;}
+  for(let r=0;r<modules;r++){
+    for(let c=0;c<modules;c++){
+      if((r<9&&c<9)||(r<9&&c>12)||(r>12&&c<9))continue;
+      if(r===6||c===6)continue;
+      if(rand()>0.5){ctx.fillStyle='#000';ctx.fillRect(c*ms,r*ms,ms*.9,ms*.9);}
+    }
+  }
+  // UPI text
+  ctx.fillStyle='#333';ctx.font='bold 8px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText(`smartaisle@upi · ₹${amount||0}`,size/2,size-4);
+}
+
+let qrSeconds=300;
+function startQRTimer(){
+  if(qrTimerInterval)clearInterval(qrTimerInterval);
+  qrSeconds=300;
+  qrTimerInterval=setInterval(()=>{
+    qrSeconds--;
+    const m=Math.floor(qrSeconds/60);const s=qrSeconds%60;
+    document.getElementById('qrTimer').textContent=`${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    if(qrSeconds<=0){clearInterval(qrTimerInterval);document.getElementById('qrTimer').textContent='Expired';}
+  },1000);
+}
+
+// ── CARD FORMATTING ───────────────────────────────────────
+function formatCardNumber(el){
+  let v=el.value.replace(/\D/g,'');
+  v=v.replace(/(\d{4})(?=\d)/g,'$1  ');
+  el.value=v;
+}
+function formatExpiry(el){
+  let v=el.value.replace(/\D/g,'');
+  if(v.length>=2)v=v.substr(0,2)+' / '+v.substr(2);
+  el.value=v;
+}
+
+// ── VOICE CART ────────────────────────────────────────────
+let voiceCartListening=false;
+const voiceItemMap={
+  'cake':      {id:'vc1',name:'Chocolate Cake',emoji:'🎂',original_price:200,discount_pct:20,discount_amount:40,final_price:160,store:'Campus Bakery',offer:'AI: 20% OFF'},
+  'coffee':    {id:'vc2',name:'Cappuccino',emoji:'☕',original_price:120,discount_pct:25,discount_amount:30,final_price:90,store:'Coffee Lab',offer:'Combo -25%'},
+  'biryani':   {id:'vc3',name:'Biryani',emoji:'🍛',original_price:250,discount_pct:15,discount_amount:37,final_price:213,store:'Food Hall AMB',offer:'-15%'},
+  'pizza':     {id:'vc4',name:'Pizza',emoji:'🍕',original_price:350,discount_pct:20,discount_amount:70,final_price:280,store:'Food Hall AMB',offer:'-20%'},
+  'movie':     {id:'vc5',name:'Movie Ticket',emoji:'🎬',original_price:200,discount_pct:20,discount_amount:40,final_price:160,store:'Cinemax AMB',offer:'Monday -20%'},
+  'ticket':    {id:'vc5',name:'Movie Ticket',emoji:'🎬',original_price:200,discount_pct:20,discount_amount:40,final_price:160,store:'Cinemax AMB',offer:'Monday -20%'},
+  'zara':      {id:'vc6',name:"Zara T-Shirt",emoji:'👕',original_price:2490,discount_pct:15,discount_amount:374,final_price:2116,store:'Zara AMB',offer:'-15%'},
+  'starbucks': {id:'vc7',name:'Frappuccino',emoji:'🧋',original_price:380,discount_pct:25,discount_amount:95,final_price:285,store:'Starbucks AMB',offer:'-25%'},
+  'frappuccino':{id:'vc7',name:'Frappuccino',emoji:'🧋',original_price:380,discount_pct:25,discount_amount:95,final_price:285,store:'Starbucks AMB',offer:'-25%'},
+  'jeans':     {id:'vc8',name:"Zara Jeans",emoji:'👖',original_price:3990,discount_pct:30,discount_amount:1197,final_price:2793,store:'Zara AMB',offer:'Season -30%'},
+  'burger':    {id:'vc9',name:'Burger',emoji:'🍔',original_price:120,discount_pct:0,discount_amount:0,final_price:120,store:'Spice Garden',offer:null},
+  'water':     {id:'vc10',name:'Mineral Water',emoji:'💧',original_price:25,discount_pct:0,discount_amount:0,final_price:25,store:'Convenience Corner',offer:null},
+};
+
+function startVoiceCart(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showToast('Speech not supported in this browser');return;}
+  if(voiceCartListening){stopVoiceCart();return;}
+  voiceCartListening=true;
+  document.getElementById('voiceCartIcon').className='fas fa-stop';
+  document.getElementById('voiceCartText').textContent='Stop Voice';
+  const status=document.getElementById('voiceCartStatus');
+  status.classList.add('show');
+  status.querySelector('#voiceCartMsg').textContent='Listening... say an item name!';
+
+  const r=new (SR)();
+  r.lang=window.currentVoiceLang||'en-IN';
+  r.continuous=false;r.interimResults=false;
+  r.onresult=e=>{
+    const text=e.results[0][0].transcript.toLowerCase();
+    status.querySelector('#voiceCartMsg').textContent=`Heard: "${text}"`;
+    let matched=false;
+    for(const[key,item] of Object.entries(voiceItemMap)){
+      if(text.includes(key)){addItem(item);matched=true;break;}
+    }
+    if(!matched) showToast(`Could not recognise "${text}" as an item`);
+    stopVoiceCart();
+  };
+  r.onerror=()=>stopVoiceCart();
+  r.onend=()=>stopVoiceCart();
+  r.start();
+}
+
+function stopVoiceCart(){
+  voiceCartListening=false;
+  document.getElementById('voiceCartIcon').className='fas fa-microphone';
+  document.getElementById('voiceCartText').textContent='Voice Add Item';
+  document.getElementById('voiceCartStatus').classList.remove('show');
+}
+
+// ── CHECKOUT ──────────────────────────────────────────────
+async function processCheckout(){
+  if(!cartItems.length)return;
+  const btn=document.getElementById('checkoutBtn');
+  btn.disabled=true;
+  btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Processing...';
+
+  const subtotal=cartItems.reduce((s,i)=>s+i.original_price*(i.qty||1),0);
+  const discount=cartItems.reduce((s,i)=>s+i.discount_amount*(i.qty||1),0);
+  const total=subtotal-discount;
+  const user=JSON.parse(localStorage.getItem('smartaisle_user')||'{}');
+
+  // Try Razorpay payment
+  try {
+    const orderRes = await fetch('/api/payment/create-order', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({amount: total})
+    });
+    const orderData = await orderRes.json();
+    if (orderData.key && !orderData.mock && typeof Razorpay !== 'undefined') {
+      const payResp = await initiateRazorpay(total, orderData.order.id);
+      // Verify
+      await fetch('/api/payment/verify', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payResp)
+      });
+    }
+  } catch(payErr) {
+    if (payErr.message !== 'Payment dismissed') {
+      // Proceed anyway in demo mode
+    } else {
+      btn.disabled=false;
+      btn.innerHTML='<i class="fas fa-lock"></i> Pay & Confirm Order';
+      return;
+    }
+  }
+
+  const orderId='ORD-'+Math.random().toString(36).substr(2,8).toUpperCase();
+  const points=Math.floor(total/10);
+
+  // Create order in backend
+  try {
+    await fetch('/api/orders', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        user_id: user.id||'guest', user_name: user.name||'Customer',
+        retailer_id: 'retailer', store_name: 'ShopVerse Store',
+        items: cartItems, subtotal, discount, total
+      })
+    });
+    // Clear claimed offers
+    localStorage.removeItem('claimedOffers');
+  } catch(e) {}
+
+  const pmNames={card:'💳 Card',qr:'📷 QR Code',upi:`🔗 ${selectedUpiApp}`,amazon:'🛒 Amazon Pay'};
+  document.getElementById('rbOrder').textContent=`Order ${orderId}`;
+  document.getElementById('rbAmount').textContent=`₹${total.toLocaleString()}`;
+  document.getElementById('rbSaved').textContent=`You saved ₹${discount.toLocaleString()} with ShopVerseAI offers!`;
+  document.getElementById('rbMethod').innerHTML=`<span class="rb-payment-badge">${pmNames[selectedPayment]||'💳 Card'}</span>`;
+  document.getElementById('rbDate').textContent=new Date().toLocaleString('en-IN');
+  document.getElementById('rbItems').textContent=cartItems.reduce((s,i)=>s+(i.qty||1),0);
+  document.getElementById('rbPoints').textContent=`+${points} pts`;
+  document.getElementById('rbItemsList').innerHTML=cartItems.map(i=>`
+    <div class="rb-row">
+      <span class="rb-label">${i.emoji} ${i.name} ×${i.qty||1}</span>
+      <span>₹${(i.final_price*(i.qty||1)).toLocaleString()}</span>
+    </div>
+  `).join('');
+
+  // Send to server
+  try{
+    await fetch('/api/billing/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:cartItems,payment_method:selectedPayment})});
+  }catch(e){}
+
+  document.getElementById('receiptModal').classList.add('open');
+  cartItems=[];renderCart();updateSummary();
+  btn.disabled=false;
+  btn.className='checkout-btn disabled';
+  btn.innerHTML='<i class="fas fa-lock"></i> Add items to checkout';
+}
+
+function closeReceipt(){document.getElementById('receiptModal').classList.remove('open');}
+
+function showToast(msg){
+  const t=document.createElement('div');
+  t.className='toast-notification';t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.classList.add('show'),100);
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},3000);
+}
+
+
+const RAZORPAY_KEY = "{{ razorpay_key }}";
+
+// Load claimed offers from localStorage and auto-apply at checkout
+function loadClaimedOffers() {
+  const claimed = JSON.parse(localStorage.getItem('claimedOffers') || '[]');
+  if (!claimed.length) return;
+  claimed.forEach(offer => {
+    const item = {
+      id: offer.id || ('co_' + Math.random().toString(36).substr(2,6)),
+      name: offer.product || offer.title,
+      emoji: offer.product_emoji || '🏷️',
+      original_price: offer.original_price || 0,
+      discount_pct: offer.discount_pct || 0,
+      discount_amount: offer.discount_amount || 0,
+      final_price: offer.final_price || 0,
+      store: offer.store_name || 'Store',
+      offer: `Claimed: -${offer.discount_pct}%`,
+      qty: 1
+    };
+    const exists = cartItems.find(ci => ci.id === item.id);
+    if (!exists && item.final_price > 0) {
+      cartItems.push(item);
+    }
+  });
+  renderCart(); updateSummary();
+  if (claimed.length > 0) showToast('✅ ' + claimed.length + ' claimed offer(s) auto-applied!');
+}
+
+// Razorpay payment flow
+async function initiateRazorpay(amount, orderId) {
+  const user = JSON.parse(localStorage.getItem('smartaisle_user') || '{}');
+  return new Promise((resolve, reject) => {
+    const options = {
+      key: RAZORPAY_KEY,
+      amount: amount * 100, // paise
+      currency: 'INR',
+      name: 'ShopVerse',
+      description: 'Smart Shopping Checkout',
+      order_id: orderId,
+      prefill: { name: user.name || '', email: user.email || '' },
+      theme: { color: '#6366f1' },
+      handler: function(response) {
+        resolve(response);
+      },
+      modal: { ondismiss: () => reject(new Error('Payment dismissed')) }
+    };
+    const rzp = new Razorpay(options);
+    rzp.open();
+  });
+}
+
+// Init
+renderCart();updateSummary();
+loadClaimedOffers();
+</script>
+{% endblock %}
